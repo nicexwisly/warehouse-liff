@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import liff from '@line/liff'
-import { addItem } from '../api'
+import { addItem } from './api'
 
 const BASE = import.meta.env.VITE_API_URL
 
