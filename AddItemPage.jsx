@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import liff from '@line/liff'
 import { addItem } from './api'
+import BarcodeScanner from './BarcodeScanner'
 
 const BASE = import.meta.env.VITE_API_URL
 
@@ -13,7 +14,7 @@ export default function AddItemPage({ profile }) {
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(null)
   const [error, setError] = useState(null)
-  const [scanning, setScanning] = useState(false)
+  const [showScanner, setShowScanner] = useState(null)  // null | 'item' | 'pallet'
   const debounceRef = useRef(null)
 
   useEffect(() => {
@@ -49,43 +50,54 @@ export default function AddItemPage({ profile }) {
     setSuggestions([])
   }
 
-  // สแกน barcode หรือ QR พาเลท
-  async function handleScan(target) {
-    setScanning(true)
+  // callback เมื่อสแกนได้ค่า
+  async function handleScanResult(val) {
+    setShowScanner(null)
+    setError(null)
+    const target = showScanner  // เก็บ target ก่อน reset
+
+    if (target === 'pallet') {
+      // สแกน QR พาเลท — ยังใช้ liff scanCodeV2 เพราะเป็น QR
+      const code = val.startsWith('PAL:') ? val.replace('PAL:', '') : val
+      const found = pallets.find(p => p.pallet_code === code)
+      if (found) {
+        setSelectedPallet(found)
+        setSuccess(`เลือกพาเลท ${found.pallet_code} แล้ว`)
+      } else {
+        setError(`ไม่พบพาเลท "${code}" ในระบบ`)
+      }
+    } else {
+      // สแกน barcode สินค้า → ค้นหา master
+      const res = await fetch(`${BASE}/master/items?q=${encodeURIComponent(val)}&limit=1`)
+      const data = await res.json()
+      if (data.length > 0) {
+        setForm(f => ({ ...f, item_code: data[0].code, item_name: data[0].name }))
+        setSuggestions([])
+        setSuccess(`พบสินค้า: ${data[0].name}`)
+      } else {
+        setForm(f => ({ ...f, item_code: val, item_name: '' }))
+        setError(`ไม่พบ barcode "${val}" ในระบบ กรุณาพิมพ์ชื่อสินค้าเพิ่มเติม`)
+      }
+    }
+  }
+
+  // สแกน QR พาเลทยังใช้ LIFF (เป็น QR)
+  async function handleScanPallet() {
     setError(null)
     try {
       const result = await liff.scanCodeV2()
       const val = result.value?.trim()
       if (!val) return
-
-      if (target === 'pallet') {
-        // สแกน QR พาเลท (PAL:P-001)
-        const code = val.startsWith('PAL:') ? val.replace('PAL:', '') : val
-        const found = pallets.find(p => p.pallet_code === code)
-        if (found) {
-          setSelectedPallet(found)
-          setSuccess(`เลือกพาเลท ${found.pallet_code} แล้ว`)
-        } else {
-          setError(`ไม่พบพาเลท "${code}" ในระบบ`)
-        }
+      const code = val.startsWith('PAL:') ? val.replace('PAL:', '') : val
+      const found = pallets.find(p => p.pallet_code === code)
+      if (found) {
+        setSelectedPallet(found)
+        setSuccess(`เลือกพาเลท ${found.pallet_code} แล้ว`)
       } else {
-        // สแกน barcode สินค้า → ค้นหา master ทันที
-        const res = await fetch(`${BASE}/master/items?q=${encodeURIComponent(val)}&limit=1`)
-        const data = await res.json()
-        if (data.length > 0) {
-          setForm(f => ({ ...f, item_code: data[0].code, item_name: data[0].name }))
-          setSuggestions([])
-          setSuccess(`พบสินค้า: ${data[0].name}`)
-        } else {
-          // ไม่พบใน master ใส่ค่า raw เพื่อให้พิมพ์เพิ่มเองได้
-          setForm(f => ({ ...f, item_code: val, item_name: '' }))
-          setError(`ไม่พบ barcode "${val}" ในระบบ กรุณาพิมพ์ชื่อสินค้าเพิ่มเติม`)
-        }
+        setError(`ไม่พบพาเลท "${code}" ในระบบ`)
       }
     } catch (e) {
       setError('สแกนไม่สำเร็จ: ' + e.message)
-    } finally {
-      setScanning(false)
     }
   }
 
@@ -112,90 +124,100 @@ export default function AddItemPage({ profile }) {
   }
 
   return (
-    <div style={styles.page}>
-      <div style={styles.header}>
-        {profile && <p style={styles.greeting}>สวัสดี {profile.displayName}</p>}
-        <h1 style={styles.title}>เพิ่มสินค้า</h1>
-      </div>
+    <>
+      {/* Barcode Scanner overlay */}
+      {showScanner === 'item' && (
+        <BarcodeScanner
+          onResult={handleScanResult}
+          onClose={() => setShowScanner(null)}
+        />
+      )}
 
-      <div style={styles.body}>
-        {success && <div style={styles.successBox}>{success}</div>}
-        {error && <div style={styles.errorBox}>{error}</div>}
+      <div style={styles.page}>
+        <div style={styles.header}>
+          {profile && <p style={styles.greeting}>สวัสดี {profile.displayName}</p>}
+          <h1 style={styles.title}>เพิ่มสินค้า</h1>
+        </div>
 
-        {/* 1. ค้นหาสินค้า */}
-        <div style={styles.card}>
-          <p style={styles.sectionTitle}>1. ค้นหาสินค้า</p>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <div style={{ flex: 1, position: 'relative' }}>
-              <input style={styles.input} placeholder="พิมพ์รหัส ชื่อ หรือ barcode..."
-                value={form.item_code} onChange={e => handleCodeChange(e.target.value)} autoComplete="off" />
-              {suggestions.length > 0 && (
-                <div style={styles.dropdown}>
-                  {suggestions.map((s, i) => (
-                    <div key={i} onClick={() => selectSuggestion(s)} style={styles.dropItem}>
-                      <span style={styles.dropCode}>{s.code}</span>
-                      <span style={styles.dropName}>{s.name}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-            <button onClick={() => handleScan('item')} style={styles.scanBtn} disabled={scanning}>
-              {scanning ? '⏳' : '📷'}
-            </button>
-          </div>
-          {form.item_name && (
-            <div style={styles.selectedBox}>
-              <div>
-                <p style={{ fontSize: 14, fontWeight: 600, color: '#1a1a1a' }}>{form.item_name}</p>
-                <p style={{ fontSize: 12, color: '#888' }}>{form.item_code}</p>
+        <div style={styles.body}>
+          {success && <div style={styles.successBox}>{success}</div>}
+          {error && <div style={styles.errorBox}>{error}</div>}
+
+          {/* 1. ค้นหาสินค้า */}
+          <div style={styles.card}>
+            <p style={styles.sectionTitle}>1. ค้นหาสินค้า</p>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <div style={{ flex: 1, position: 'relative' }}>
+                <input style={styles.input} placeholder="พิมพ์รหัส ชื่อ หรือ barcode..."
+                  value={form.item_code} onChange={e => handleCodeChange(e.target.value)} autoComplete="off" />
+                {suggestions.length > 0 && (
+                  <div style={styles.dropdown}>
+                    {suggestions.map((s, i) => (
+                      <div key={i} onClick={() => selectSuggestion(s)} style={styles.dropItem}>
+                        <span style={styles.dropCode}>{s.code}</span>
+                        <span style={styles.dropName}>{s.name}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
-              <button onClick={() => setForm({ item_code: '', item_name: '', qty: 1 })} style={styles.clearBtn}>✕</button>
+              <button onClick={() => setShowScanner('item')} style={styles.scanBtn}>
+                📷
+              </button>
             </div>
-          )}
-          <p style={styles.hint}>📷 กดกล้องเพื่อสแกน barcode บนสินค้าได้เลย</p>
-        </div>
-
-        {/* 2. จำนวน */}
-        <div style={styles.card}>
-          <p style={styles.sectionTitle}>2. จำนวน</p>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <button onClick={() => setForm(f => ({ ...f, qty: Math.max(1, f.qty - 1) }))} style={styles.qtyBtn}>−</button>
-            <input style={{ ...styles.input, width: 80, textAlign: 'center', fontSize: 18, fontWeight: 700 }}
-              type="number" value={form.qty} onChange={e => setForm(f => ({ ...f, qty: Number(e.target.value) || 1 }))} />
-            <button onClick={() => setForm(f => ({ ...f, qty: f.qty + 1 }))} style={styles.qtyBtn}>+</button>
+            {form.item_name && (
+              <div style={styles.selectedBox}>
+                <div>
+                  <p style={{ fontSize: 14, fontWeight: 600, color: '#1a1a1a' }}>{form.item_name}</p>
+                  <p style={{ fontSize: 12, color: '#888' }}>{form.item_code}</p>
+                </div>
+                <button onClick={() => setForm({ item_code: '', item_name: '', qty: 1 })} style={styles.clearBtn}>✕</button>
+              </div>
+            )}
+            <p style={styles.hint}>📷 กดกล้องเพื่อสแกน barcode บนสินค้าได้เลย</p>
           </div>
-        </div>
 
-        {/* 3. เลือกพาเลท */}
-        <div style={styles.card}>
-          <p style={styles.sectionTitle}>3. เลือกพาเลทปลายทาง</p>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <select style={{ ...styles.input, flex: 1 }}
-              value={selectedPallet?.id || ''}
-              onChange={e => setSelectedPallet(pallets.find(p => p.id === Number(e.target.value)) || null)}>
-              <option value="">-- เลือกพาเลท --</option>
-              {pallets.map(p => (
-                <option key={p.id} value={p.id}>{getPalletLabel(p)}</option>
-              ))}
-            </select>
-            <button onClick={() => handleScan('pallet')} style={styles.scanBtn} disabled={scanning} title="สแกน QR พาเลท">
-              {scanning ? '⏳' : '📷'}
-            </button>
+          {/* 2. จำนวน */}
+          <div style={styles.card}>
+            <p style={styles.sectionTitle}>2. จำนวน</p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <button onClick={() => setForm(f => ({ ...f, qty: Math.max(1, f.qty - 1) }))} style={styles.qtyBtn}>−</button>
+              <input style={{ ...styles.input, width: 80, textAlign: 'center', fontSize: 18, fontWeight: 700 }}
+                type="number" value={form.qty} onChange={e => setForm(f => ({ ...f, qty: Number(e.target.value) || 1 }))} />
+              <button onClick={() => setForm(f => ({ ...f, qty: f.qty + 1 }))} style={styles.qtyBtn}>+</button>
+            </div>
           </div>
-          {selectedPallet && (
-            <p style={{ fontSize: 13, color: '#06c755', marginTop: 6, fontWeight: 600 }}>
-              ✅ {getPalletLabel(selectedPallet)}
-            </p>
-          )}
-          <p style={styles.hint}>📷 กดกล้องเพื่อสแกน QR Code บนพาเลทได้เลย</p>
-        </div>
 
-        <button onClick={handleAdd} style={styles.addBtn} disabled={loading}>
-          {loading ? 'กำลังบันทึก...' : '+ เพิ่มสินค้า'}
-        </button>
+          {/* 3. เลือกพาเลท */}
+          <div style={styles.card}>
+            <p style={styles.sectionTitle}>3. เลือกพาเลทปลายทาง</p>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <select style={{ ...styles.input, flex: 1 }}
+                value={selectedPallet?.id || ''}
+                onChange={e => setSelectedPallet(pallets.find(p => p.id === Number(e.target.value)) || null)}>
+                <option value="">-- เลือกพาเลท --</option>
+                {pallets.map(p => (
+                  <option key={p.id} value={p.id}>{getPalletLabel(p)}</option>
+                ))}
+              </select>
+              <button onClick={handleScanPallet} style={styles.scanBtn} title="สแกน QR พาเลท">
+                📷
+              </button>
+            </div>
+            {selectedPallet && (
+              <p style={{ fontSize: 13, color: '#06c755', marginTop: 6, fontWeight: 600 }}>
+                ✅ {getPalletLabel(selectedPallet)}
+              </p>
+            )}
+            <p style={styles.hint}>📷 กดกล้องเพื่อสแกน QR Code บนพาเลทได้เลย</p>
+          </div>
+
+          <button onClick={handleAdd} style={styles.addBtn} disabled={loading}>
+            {loading ? 'กำลังบันทึก...' : '+ เพิ่มสินค้า'}
+          </button>
+        </div>
       </div>
-    </div>
+    </>
   )
 }
 
