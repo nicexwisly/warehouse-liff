@@ -1,5 +1,6 @@
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import { getPalletDetail, addItem, deductItem } from './api'
+import ItemSearchInput from './ItemSearchInput'
 
 const BASE = import.meta.env.VITE_API_URL
 
@@ -9,23 +10,8 @@ const BASE = import.meta.env.VITE_API_URL
 function PalletModal({ modal, profile, onClose, onRefresh }) {
   const [view, setView] = useState('list')
   const [form, setForm] = useState({ item_code: '', item_name: '', qty: 1 })
-  const [suggestions, setSuggestions] = useState([])
   const [actionLoading, setActionLoading] = useState(false)
   const [actionMsg, setActionMsg] = useState(null)
-  const debounceRef = useRef(null)
-
-  function handleCodeChange(val) {
-    setForm(f => ({ ...f, item_code: val, item_name: '' }))
-    setSuggestions([])
-    if (debounceRef.current) clearTimeout(debounceRef.current)
-    if (!val.trim()) return
-    debounceRef.current = setTimeout(async () => {
-      try {
-        const res = await fetch(`${BASE}/master/items?q=${encodeURIComponent(val)}&limit=6`)
-        setSuggestions(await res.json())
-      } catch {}
-    }, 300)
-  }
 
   async function handleAdd() {
     if (!form.item_code || !form.item_name) return setActionMsg({ type: 'error', text: 'กรุณาเลือกสินค้า' })
@@ -110,21 +96,11 @@ function PalletModal({ modal, profile, onClose, onRefresh }) {
           </div>
         ) : (
           <div style={ms.addForm}>
-            <div style={{ position: 'relative' }}>
-              <input style={ms.input} placeholder="พิมพ์รหัส ชื่อ หรือ barcode..."
-                value={form.item_code} onChange={e => handleCodeChange(e.target.value)} autoComplete="off" autoFocus />
-              {suggestions.length > 0 && (
-                <div style={ms.dropdown}>
-                  {suggestions.map((s, i) => (
-                    <div key={i} onClick={() => { setForm(f => ({ ...f, item_code: s.code, item_name: s.name })); setSuggestions([]) }} style={ms.dropItem}>
-                      <span style={ms.dropCode}>{s.code}</span>
-                      <span style={ms.dropName}>{s.name}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-            {form.item_name && <div style={ms.selectedBox}><p style={{ fontSize: 13, fontWeight: 600 }}>{form.item_name}</p><p style={{ fontSize: 11, color: '#888' }}>{form.item_code}</p></div>}
+            <ItemSearchInput
+              value={{ item_code: form.item_code, item_name: form.item_name }}
+              onChange={selected => setForm(f => ({ ...f, item_code: selected.code, item_name: selected.name }))}
+              onClear={() => setForm(f => ({ ...f, item_code: '', item_name: '' }))}
+            />
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <span style={{ fontSize: 13, color: '#555' }}>จำนวน</span>
               <button onClick={() => setForm(f => ({ ...f, qty: Math.max(1, f.qty-1) }))} style={ms.qtyBtn}>−</button>
