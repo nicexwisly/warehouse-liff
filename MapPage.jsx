@@ -17,7 +17,7 @@ function PalletModal({ modal, profile, onClose, onRefresh }) {
     if (!form.item_code || !form.item_name) return setActionMsg({ type: 'error', text: 'กรุณาเลือกสินค้า' })
     setActionLoading(true)
     try {
-      await addItem({ pallet_id: modal.pallet.id, item_code: form.item_code, item_name: form.item_name, qty: Number(form.qty) })
+      await addItem({ pallet_id: modal.pallet.id, item_code: form.item_code, item_name: form.item_name, qty: Number(form.qty), actor_name: profile?.displayName, actor_user_id: profile?.userId })
       setActionMsg({ type: 'success', text: `เพิ่ม "${form.item_name}" แล้ว` })
       setForm({ item_code: '', item_name: '', qty: 1 })
       const detail = await getPalletDetail(modal.pallet.id)

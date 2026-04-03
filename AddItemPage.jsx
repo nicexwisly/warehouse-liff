@@ -45,7 +45,7 @@ export default function AddItemPage({ profile }) {
     if (!selectedPallet) return setError('กรุณาเลือกพาเลทปลายทาง')
     setLoading(true); setError(null); setSuccess(null)
     try {
-      await addItem({ pallet_id: selectedPallet.id, item_code: item.item_code, item_name: item.item_name, qty: Number(qty) })
+      await addItem({ pallet_id: selectedPallet.id, item_code: item.item_code, item_name: item.item_name, qty: Number(qty), actor_name: profile?.displayName, actor_user_id: profile?.userId })
       setSuccess(`✅ เพิ่ม "${item.item_name}" เข้าพาเลท ${selectedPallet.pallet_code} แล้ว`)
       setItem({ item_code: '', item_name: '' })
       setQty(1)
