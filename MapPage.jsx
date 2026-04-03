@@ -1,12 +1,10 @@
 import { useEffect, useState } from 'react'
 import { getPalletDetail, addItem, deductItem } from './api'
 import ItemSearchInput from './ItemSearchInput'
+import { theme } from './theme'
 
 const BASE = import.meta.env.VITE_API_URL
 
-// ============================================================
-// Shared: Modal เพิ่ม/ลบสินค้า (ใช้ร่วมกันทั้ง Tent และ Container)
-// ============================================================
 function PalletModal({ modal, profile, onClose, onRefresh }) {
   const [view, setView] = useState('list')
   const [form, setForm] = useState({ item_code: '', item_name: '', qty: 1 })
@@ -54,8 +52,7 @@ function PalletModal({ modal, profile, onClose, onRefresh }) {
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
             {modal.pallet && (
-              <button onClick={() => { setView(v => v === 'add' ? 'list' : 'add'); setActionMsg(null) }}
-                style={{ ...ms.tabBtn, background: view === 'add' ? '#06c755' : '#f0f0f0', color: view === 'add' ? '#fff' : '#444' }}>
+              <button onClick={() => { setView(v => v === 'add' ? 'list' : 'add'); setActionMsg(null) }} style={{ ...ms.tabBtn, ...(view === 'add' ? ms.tabBtnActive : null) }}>
                 {view === 'add' ? '← รายการ' : '+ เพิ่ม'}
               </button>
             )}
@@ -63,26 +60,20 @@ function PalletModal({ modal, profile, onClose, onRefresh }) {
           </div>
         </div>
 
-        {actionMsg && (
-          <div style={{ padding: '8px 16px', fontSize: 13,
-            background: actionMsg.type === 'success' ? '#e6faf0' : '#fff5f5',
-            color: actionMsg.type === 'success' ? '#0a7a3e' : '#e53e3e' }}>
-            {actionMsg.text}
-          </div>
-        )}
+        {actionMsg && <div style={{ padding: '8px 16px', fontSize: 13, background: actionMsg.type === 'success' ? theme.greenSoft : theme.redSoft, color: actionMsg.type === 'success' ? '#208142' : theme.red }}>{actionMsg.text}</div>}
 
         {modal.loading ? <p style={ms.centerText}>กำลังโหลด...</p>
-        : modal.error ? <p style={{ ...ms.centerText, color: '#e53e3e' }}>{modal.error}</p>
+        : modal.error ? <p style={{ ...ms.centerText, color: theme.red }}>{modal.error}</p>
         : view === 'list' ? (
           <div style={ms.itemList}>
             {modal.items.length === 0 && (
               <div style={ms.emptyState}>
-                <p style={{ color: '#aaa', fontSize: 14 }}>ยังไม่มีสินค้า</p>
+                <p style={{ color: theme.textSoft, fontSize: 14 }}>ยังไม่มีสินค้า</p>
                 <button onClick={() => setView('add')} style={ms.addFirstBtn}>+ เพิ่มสินค้าแรก</button>
               </div>
             )}
             {modal.items.map((item, i) => (
-              <div key={item.id} style={{ ...ms.itemRow, borderTop: i > 0 ? '1px solid #f5f5f5' : 'none' }}>
+              <div key={item.id} style={{ ...ms.itemRow, borderTop: i > 0 ? `1px solid ${theme.lineSoft}` : 'none' }}>
                 <div style={{ flex: 1 }}>
                   <p style={ms.itemName}>{item.item_name}</p>
                   <p style={ms.itemCode}>{item.item_code}</p>
@@ -102,15 +93,12 @@ function PalletModal({ modal, profile, onClose, onRefresh }) {
               onClear={() => setForm(f => ({ ...f, item_code: '', item_name: '' }))}
             />
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ fontSize: 13, color: '#555' }}>จำนวน</span>
-              <button onClick={() => setForm(f => ({ ...f, qty: Math.max(1, f.qty-1) }))} style={ms.qtyBtn}>−</button>
-              <input style={{ ...ms.input, width: 60, textAlign: 'center', fontWeight: 700 }} type="number"
-                value={form.qty} onChange={e => setForm(f => ({ ...f, qty: Number(e.target.value)||1 }))} />
-              <button onClick={() => setForm(f => ({ ...f, qty: f.qty+1 }))} style={ms.qtyBtn}>+</button>
+              <span style={{ fontSize: 13, color: theme.textMuted }}>จำนวน</span>
+              <button onClick={() => setForm(f => ({ ...f, qty: Math.max(1, f.qty - 1) }))} style={ms.qtyBtn}>−</button>
+              <input style={{ ...theme.input, width: 60, textAlign: 'center', fontWeight: 700 }} type="number" value={form.qty} onChange={e => setForm(f => ({ ...f, qty: Number(e.target.value) || 1 }))} />
+              <button onClick={() => setForm(f => ({ ...f, qty: f.qty + 1 }))} style={ms.qtyBtn}>+</button>
             </div>
-            <button onClick={handleAdd} style={ms.confirmAddBtn} disabled={actionLoading}>
-              {actionLoading ? 'กำลังบันทึก...' : '+ เพิ่มสินค้า'}
-            </button>
+            <button onClick={handleAdd} style={ms.confirmAddBtn} disabled={actionLoading}>{actionLoading ? 'กำลังบันทึก...' : 'เพิ่มสินค้า'}</button>
           </div>
         )}
       </div>
@@ -119,36 +107,28 @@ function PalletModal({ modal, profile, onClose, onRefresh }) {
 }
 
 const ms = {
-  overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'flex-end', zIndex: 100 },
-  card: { background: '#fff', borderRadius: '16px 16px 0 0', width: '100%', maxHeight: '80vh', display: 'flex', flexDirection: 'column', paddingBottom: 'env(safe-area-inset-bottom)' },
-  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 16px 12px', borderBottom: '1px solid #f0f0f0' },
-  title: { fontSize: 18, fontWeight: 700, color: '#1a1a1a' },
-  sub: { fontSize: 13, color: '#888', marginTop: 2 },
-  tabBtn: { padding: '6px 14px', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' },
-  closeBtn: { background: '#f5f5f5', border: 'none', borderRadius: 20, width: 30, height: 30, fontSize: 14, cursor: 'pointer', color: '#666' },
-  centerText: { padding: 24, textAlign: 'center', color: '#aaa' },
-  itemList: { overflowY: 'auto', flex: 1 },
+  overlay: { position: 'fixed', inset: 0, background: 'rgba(20,20,22,0.32)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'flex-end', zIndex: 100 },
+  card: { background: theme.window, borderRadius: '18px 18px 0 0', width: '100%', maxHeight: '82vh', display: 'flex', flexDirection: 'column', paddingBottom: 'env(safe-area-inset-bottom)', borderTop: `1px solid ${theme.line}` },
+  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 16px 12px', borderBottom: `1px solid ${theme.lineSoft}`, background: theme.toolbar },
+  title: { fontSize: 18, fontWeight: 700, color: theme.text },
+  sub: { fontSize: 13, color: theme.textSoft, marginTop: 2 },
+  tabBtn: { ...theme.button, padding: '6px 14px', fontSize: 13, fontWeight: 600 },
+  tabBtnActive: { background: theme.blue, color: '#fff', borderColor: 'rgba(10,132,255,0.25)' },
+  closeBtn: { ...theme.button, borderRadius: 999, width: 30, height: 30, fontSize: 14, color: theme.textMuted },
+  centerText: { padding: 24, textAlign: 'center', color: theme.textSoft },
+  itemList: { overflowY: 'auto', flex: 1, background: theme.panel },
   emptyState: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, padding: '28px 0' },
-  addFirstBtn: { padding: '8px 20px', background: '#06c755', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 600, cursor: 'pointer' },
+  addFirstBtn: { ...theme.primaryButton, padding: '8px 20px', fontWeight: 600 },
   itemRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '11px 16px' },
-  itemName: { fontSize: 14, fontWeight: 600, color: '#1a1a1a' },
-  itemCode: { fontSize: 12, color: '#888', marginTop: 2 },
-  qtyBadge: { fontSize: 15, fontWeight: 700, color: '#1a1a1a', minWidth: 28, textAlign: 'center' },
-  deductBtn: { padding: '5px 10px', background: '#fff5f5', color: '#e53e3e', border: '1px solid #fecaca', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer' },
+  itemName: { fontSize: 14, fontWeight: 600, color: theme.text },
+  itemCode: { fontSize: 12, color: theme.textSoft, marginTop: 2 },
+  qtyBadge: { fontSize: 15, fontWeight: 700, color: theme.text, minWidth: 28, textAlign: 'center' },
+  deductBtn: { ...theme.button, padding: '5px 10px', color: theme.red, background: theme.redSoft, fontSize: 12, fontWeight: 600 },
   addForm: { padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 12, overflowY: 'auto' },
-  input: { padding: '10px 12px', borderRadius: 8, border: '1.5px solid #e2e8f0', fontSize: 14, width: '100%', outline: 'none', boxSizing: 'border-box' },
-  dropdown: { position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, boxShadow: '0 4px 12px rgba(0,0,0,0.1)', zIndex: 50, maxHeight: 200, overflowY: 'auto' },
-  dropItem: { padding: '9px 12px', borderBottom: '1px solid #f5f5f5', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 2 },
-  dropCode: { fontSize: 11, color: '#888', fontWeight: 600 },
-  dropName: { fontSize: 13, color: '#1a1a1a' },
-  selectedBox: { background: '#e6faf0', padding: '10px 12px', borderRadius: 8 },
-  qtyBtn: { width: 38, height: 38, borderRadius: 8, border: '1.5px solid #e2e8f0', background: '#fff', fontSize: 20, cursor: 'pointer', flexShrink: 0 },
-  confirmAddBtn: { padding: '12px', background: '#06c755', color: '#fff', border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 15, cursor: 'pointer' },
+  qtyBtn: { ...theme.button, width: 38, height: 38, fontSize: 20, flexShrink: 0 },
+  confirmAddBtn: { ...theme.primaryButton, padding: '12px', fontWeight: 700, fontSize: 15 },
 }
 
-// ============================================================
-// Tent Map
-// ============================================================
 function TentMap({ profile }) {
   const [map, setMap] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -177,62 +157,56 @@ function TentMap({ profile }) {
     } catch (e) { setModal(m => ({ ...m, loading: false, error: e.message })) }
   }
 
-  if (loading) return <p style={{ padding: 24, textAlign: 'center', color: '#888' }}>กำลังโหลด...</p>
+  if (loading) return <p style={{ padding: 24, textAlign: 'center', color: theme.textSoft }}>กำลังโหลด...</p>
   if (!map) return null
 
-  const rows = Object.entries(map).sort(([a],[b]) => a.localeCompare(b))
+  const rows = Object.entries(map).sort(([a], [b]) => a.localeCompare(b))
 
   return (
     <div style={{ padding: '8px 10px' }}>
-      <div style={ts.grid}>
-        <div />
-        {[1,2,3,4].map(s => <div key={s} style={ts.colHeader}>ล็อค {s}</div>)}
+      <div style={sectionStyles.panel}>
+        <div style={sectionStyles.headerRow}><div style={sectionStyles.title}>Tent Rack</div><div style={sectionStyles.sub}>แตะช่องเพื่อดูพาเลทและรายการสินค้า</div></div>
+        <div style={ts.grid}><div />{[1, 2, 3, 4].map(s => <div key={s} style={ts.colHeader}>ล็อค {s}</div>)}</div>
+        {rows.map(([row, slots]) => (
+          <div key={row} style={ts.grid}>
+            <div style={ts.rowHeader}>แถว {row}</div>
+            {[1, 2, 3, 4].map(slot => {
+              const slotData = slots[String(slot)] || {}
+              const levels = Object.entries(slotData).sort(([a], [b]) => Number(a) - Number(b))
+              return (
+                <div key={slot} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  {levels.map(([level, data]) => {
+                    const hasItems = data.item_count > 0
+                    return (
+                      <div key={level} onClick={() => handleCellClick(data)} style={{ ...ts.cell, background: hasItems ? '#f3fbf5' : '#fafafb', border: modal?.label === data.label ? `2px solid ${theme.blue}` : hasItems ? '1px solid rgba(52,199,89,0.35)' : `1px solid ${theme.line}` }}>
+                        <span style={ts.levelLabel}>ชั้น {level}</span>
+                        <span style={ts.slotLabel}>{data.label}</span>
+                        {hasItems ? <span style={ts.count}>{data.item_count}</span> : <span style={ts.plus}>+</span>}
+                      </div>
+                    )
+                  })}
+                </div>
+              )
+            })}
+          </div>
+        ))}
       </div>
-      {rows.map(([row, slots]) => (
-        <div key={row} style={ts.grid}>
-          <div style={ts.rowHeader}>แถว {row}</div>
-          {[1,2,3,4].map(slot => {
-            const slotData = slots[String(slot)] || {}
-            const levels = Object.entries(slotData).sort(([a],[b]) => Number(a)-Number(b))
-            return (
-              <div key={slot} style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                {levels.map(([level, data]) => {
-                  const hasItems = data.item_count > 0
-                  return (
-                    <div key={level} onClick={() => handleCellClick(data)} style={{
-                      ...ts.cell,
-                      background: hasItems ? '#e6faf0' : '#fafafa',
-                      border: modal?.label === data.label ? '2px solid #06c755' : hasItems ? '1.5px solid #06c755' : '1.5px solid #e8e8e8',
-                    }}>
-                      <span style={ts.levelLabel}>ชั้น {level}</span>
-                      {hasItems ? <span style={ts.count}>{data.item_count}</span> : <span style={ts.plus}>+</span>}
-                    </div>
-                  )
-                })}
-              </div>
-            )
-          })}
-        </div>
-      ))}
-      {modal && <PalletModal modal={modal} profile={profile} onClose={() => { setModal(null); loadMap() }}
-        onRefresh={items => setModal(m => ({ ...m, items }))} />}
+      {modal && <PalletModal modal={modal} profile={profile} onClose={() => { setModal(null); loadMap() }} onRefresh={items => setModal(m => ({ ...m, items }))} />}
     </div>
   )
 }
 
 const ts = {
-  grid: { display: 'grid', gridTemplateColumns: '36px 1fr 1fr 1fr 1fr', gap: 4, marginBottom: 4 },
-  colHeader: { textAlign: 'center', fontSize: 11, color: '#999', fontWeight: 600, paddingBottom: 2 },
-  rowHeader: { display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, background: '#f5f5f5', borderRadius: 6 },
-  cell: { borderRadius: 6, padding: '5px 4px', display: 'flex', flexDirection: 'column', alignItems: 'center', minHeight: 44, cursor: 'pointer' },
-  levelLabel: { fontSize: 10, color: '#aaa' },
-  count: { fontSize: 16, fontWeight: 700, color: '#06c755', lineHeight: 1.2 },
-  plus: { fontSize: 16, color: '#ccc' },
+  grid: { display: 'grid', gridTemplateColumns: '44px 1fr 1fr 1fr 1fr', gap: 6, marginBottom: 6 },
+  colHeader: { textAlign: 'center', fontSize: 11, color: theme.textSoft, fontWeight: 600, paddingBottom: 2 },
+  rowHeader: { display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, background: theme.toolbar, borderRadius: 10, color: theme.textMuted, border: `1px solid ${theme.lineSoft}` },
+  cell: { borderRadius: 10, padding: '6px 4px', display: 'flex', flexDirection: 'column', alignItems: 'center', minHeight: 56, cursor: 'pointer' },
+  levelLabel: { fontSize: 10, color: theme.textSoft },
+  slotLabel: { fontSize: 10, color: theme.textMuted, marginTop: 2 },
+  count: { fontSize: 16, fontWeight: 700, color: '#208142', lineHeight: 1.2, marginTop: 2 },
+  plus: { fontSize: 16, color: '#c7c7cc' },
 }
 
-// ============================================================
-// Container Map
-// ============================================================
 function ContainerMap({ profile }) {
   const [map, setMap] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -262,10 +236,9 @@ function ContainerMap({ profile }) {
     } catch (e) { setModal(m => ({ ...m, loading: false, error: e.message })) }
   }
 
-  if (loading) return <p style={{ padding: 24, textAlign: 'center', color: '#888' }}>กำลังโหลด...</p>
+  if (loading) return <p style={{ padding: 24, textAlign: 'center', color: theme.textSoft }}>กำลังโหลด...</p>
   if (!map) return null
 
-  // จัดกลุ่มตาม container number: CON1A, CON1B → con=1
   const conData = {}
   for (const [rowKey, slots] of Object.entries(map)) {
     const m = rowKey.match(/^CON(\d+)([A-Z]+)$/)
@@ -280,109 +253,84 @@ function ContainerMap({ profile }) {
 
   return (
     <div style={{ padding: '8px 10px' }}>
-      {/* Tab เลือกตู้ */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-        {containerNos.map(no => (
-          <button key={no} onClick={() => setActiveCon(no)} style={{
-            flex: 1, padding: '8px 0', border: 'none', borderRadius: 8, fontWeight: 600, fontSize: 14, cursor: 'pointer',
-            background: activeCon === no ? '#1a1a1a' : '#f0f0f0',
-            color: activeCon === no ? '#fff' : '#555',
-          }}>
-            ตู้ {no}
-          </button>
-        ))}
-      </div>
-
-      {/* แสดงตู้ที่เลือก */}
-      {conData[activeCon] && (
-        <div style={{ background: '#fff', borderRadius: 12, padding: 12 }}>
-          <p style={{ fontSize: 13, fontWeight: 700, color: '#555', marginBottom: 10 }}>
-            ตู้คอนเทนเนอร์ที่ {activeCon}
-          </p>
-
-          {/* Header slots */}
-          <div style={cs.grid}>
-            <div style={cs.rowLabel} />
-            {[1,2,3,4].map(s => <div key={s} style={cs.colHeader}>ช่อง {s}</div>)}
-          </div>
-
-          {/* แถว A และ B */}
-          {Object.entries(conData[activeCon]).sort(([a],[b]) => a.localeCompare(b)).map(([rowLetter, slots]) => (
-            <div key={rowLetter} style={cs.grid}>
-              <div style={cs.rowLabel}>แถว {rowLetter}</div>
-              {[1,2,3,4].map(slot => {
-                const data = slots[String(slot)]?.['1']   // ชั้น 1 เท่านั้น
-                if (!data) return <div key={slot} style={{ ...cs.cell, background: '#f9f9f9', border: '1.5px dashed #ddd' }}><span style={cs.emptyText}>ไม่มี</span></div>
-                const hasItems = data.item_count > 0
-                return (
-                  <div key={slot} onClick={() => handleCellClick(data)} style={{
-                    ...cs.cell,
-                    background: hasItems ? '#e6faf0' : '#fafafa',
-                    border: modal?.label === data.label ? '2px solid #06c755' : hasItems ? '1.5px solid #06c755' : '1.5px solid #e2e8f0',
-                  }}>
-                    <span style={cs.labelText}>{data.label}</span>
-                    {hasItems
-                      ? <span style={cs.count}>{data.item_count}</span>
-                      : <span style={cs.plus}>+</span>}
-                  </div>
-                )
-              })}
-            </div>
+      <div style={sectionStyles.panel}>
+        <div style={sectionStyles.headerRow}><div style={sectionStyles.title}>Computer Cabinet</div><div style={sectionStyles.sub}>เลือกตู้คอนเทนเนอร์แล้วแตะช่องที่ต้องการ</div></div>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+          {containerNos.map(no => (
+            <button key={no} onClick={() => setActiveCon(no)} style={{ ...sectionStyles.tab, ...(activeCon === no ? sectionStyles.tabActive : null) }}>ตู้ {no}</button>
           ))}
         </div>
-      )}
 
-      {modal && <PalletModal modal={modal} profile={profile} onClose={() => { setModal(null); loadMap() }}
-        onRefresh={items => setModal(m => ({ ...m, items }))} />}
+        {conData[activeCon] && (
+          <div style={{ background: theme.panel, borderRadius: 14, padding: 12, border: `1px solid ${theme.lineSoft}` }}>
+            <p style={{ fontSize: 13, fontWeight: 700, color: theme.textMuted, marginBottom: 10 }}>ตู้คอนเทนเนอร์ที่ {activeCon}</p>
+            <div style={cs.grid}><div style={cs.rowLabel} />{[1, 2, 3, 4].map(s => <div key={s} style={cs.colHeader}>ช่อง {s}</div>)}</div>
+            {Object.entries(conData[activeCon]).sort(([a], [b]) => a.localeCompare(b)).map(([rowLetter, slots]) => (
+              <div key={rowLetter} style={cs.grid}>
+                <div style={cs.rowLabel}>แถว {rowLetter}</div>
+                {[1, 2, 3, 4].map(slot => {
+                  const data = slots[String(slot)]?.['1']
+                  if (!data) return <div key={slot} style={{ ...cs.cell, background: '#fafafb', border: `1px dashed ${theme.line}` }}><span style={cs.emptyText}>ไม่มี</span></div>
+                  const hasItems = data.item_count > 0
+                  return (
+                    <div key={slot} onClick={() => handleCellClick(data)} style={{ ...cs.cell, background: hasItems ? '#f3fbf5' : '#fafafb', border: modal?.label === data.label ? `2px solid ${theme.blue}` : hasItems ? '1px solid rgba(52,199,89,0.35)' : `1px solid ${theme.line}` }}>
+                      <span style={cs.labelText}>{data.label}</span>
+                      {hasItems ? <span style={cs.count}>{data.item_count}</span> : <span style={cs.plus}>+</span>}
+                    </div>
+                  )
+                })}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {modal && <PalletModal modal={modal} profile={profile} onClose={() => { setModal(null); loadMap() }} onRefresh={items => setModal(m => ({ ...m, items }))} />}
     </div>
   )
 }
 
 const cs = {
   grid: { display: 'grid', gridTemplateColumns: '52px 1fr 1fr 1fr 1fr', gap: 6, marginBottom: 6 },
-  colHeader: { textAlign: 'center', fontSize: 11, color: '#999', fontWeight: 600 },
-  rowLabel: { display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: '#1a1a1a', background: '#f5f5f5', borderRadius: 6 },
-  cell: { borderRadius: 8, padding: '8px 4px', display: 'flex', flexDirection: 'column', alignItems: 'center', minHeight: 60, cursor: 'pointer' },
-  labelText: { fontSize: 10, color: '#aaa', marginBottom: 2 },
-  count: { fontSize: 20, fontWeight: 700, color: '#06c755' },
-  plus: { fontSize: 20, color: '#ccc' },
-  emptyText: { fontSize: 11, color: '#ccc' },
+  colHeader: { textAlign: 'center', fontSize: 11, color: theme.textSoft, fontWeight: 600 },
+  rowLabel: { display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: theme.textMuted, background: theme.toolbar, borderRadius: 10, border: `1px solid ${theme.lineSoft}` },
+  cell: { borderRadius: 10, padding: '8px 4px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 64, cursor: 'pointer' },
+  labelText: { fontSize: 10, color: theme.textSoft, marginBottom: 4 },
+  count: { fontSize: 20, fontWeight: 700, color: '#208142' },
+  plus: { fontSize: 20, color: '#c7c7cc' },
+  emptyText: { fontSize: 11, color: '#c7c7cc' },
 }
 
-// ============================================================
-// MapPage — main component ที่มี tab Tent / Container
-// ============================================================
+const sectionStyles = {
+  panel: { background: theme.window, borderRadius: 16, border: `1px solid ${theme.line}`, padding: 12, boxShadow: theme.shadowSoft },
+  headerRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '2px 2px 12px' },
+  title: { fontSize: 16, fontWeight: 700, color: theme.text },
+  sub: { fontSize: 12, color: theme.textSoft, textAlign: 'right' },
+  tab: { ...theme.button, flex: 1, padding: '8px 0', fontWeight: 600, fontSize: 14 },
+  tabActive: { background: theme.blue, color: '#fff', borderColor: 'rgba(10,132,255,0.25)' },
+}
+
 export default function MapPage({ profile }) {
   const [activeZone, setActiveZone] = useState('tent')
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      {/* Header + zone toggle */}
-      <div style={{ background: '#fff', padding: '12px 16px 0', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
-        <h1 style={{ fontSize: 20, fontWeight: 700, color: '#1a1a1a', marginBottom: 10 }}>แผนที่</h1>
-        <div style={{ display: 'flex', gap: 0, borderBottom: '2px solid #f0f0f0' }}>
+      <div style={{ background: theme.toolbar, padding: '14px 16px 0', borderBottom: `1px solid ${theme.line}` }}>
+        <h1 style={{ fontSize: 24, fontWeight: 700, color: theme.text, marginBottom: 12 }}>Map</h1>
+        <div style={{ display: 'flex', gap: 8, paddingBottom: 12 }}>
           {[
             { key: 'tent', label: '🏕️ เต้นท์' },
-            { key: 'container', label: '🚛 ตู้คอนเทนเนอร์' },
+            { key: 'container', label: '🖥️ ตู้คอม' },
           ].map(tab => (
-            <button key={tab.key} onClick={() => setActiveZone(tab.key)} style={{
-              padding: '8px 16px', border: 'none', background: 'none', fontSize: 14, fontWeight: 600,
-              color: activeZone === tab.key ? '#06c755' : '#888',
-              borderBottom: activeZone === tab.key ? '2px solid #06c755' : '2px solid transparent',
-              cursor: 'pointer', marginBottom: -2,
-            }}>
+            <button key={tab.key} onClick={() => setActiveZone(tab.key)} style={{ ...sectionStyles.tab, ...(activeZone === tab.key ? sectionStyles.tabActive : null), flex: 'unset', padding: '8px 14px' }}>
               {tab.label}
             </button>
           ))}
         </div>
       </div>
 
-      {/* Content */}
       <div style={{ flex: 1, overflowY: 'auto' }}>
-        {activeZone === 'tent'
-          ? <TentMap profile={profile} />
-          : <ContainerMap profile={profile} />
-        }
+        {activeZone === 'tent' ? <TentMap profile={profile} /> : <ContainerMap profile={profile} />}
       </div>
     </div>
   )

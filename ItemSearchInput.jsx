@@ -1,17 +1,9 @@
 import { useState, useRef } from 'react'
 import BarcodeScanner from './BarcodeScanner'
+import { theme } from './theme'
 
 const BASE = import.meta.env.VITE_API_URL
 
-/**
- * ItemSearchInput — ช่องค้นหาสินค้า ใช้ร่วมกันทุกหน้า
- * รองรับ: พิมพ์ชื่อ / รหัสสินค้า / barcode / สแกน barcode
- *
- * Props:
- *   value        { item_code, item_name }
- *   onChange     (item: { code, name }) => void
- *   onClear      () => void
- */
 export default function ItemSearchInput({ value, onChange, onClear }) {
   const [query, setQuery] = useState(value?.item_code || '')
   const [suggestions, setSuggestions] = useState([])
@@ -21,7 +13,7 @@ export default function ItemSearchInput({ value, onChange, onClear }) {
 
   function handleInput(val) {
     setQuery(val)
-    if (value?.item_name) onClear?.()   // reset ถ้าพิมพ์ใหม่
+    if (value?.item_name) onClear?.()
     setSuggestions([])
     if (debounceRef.current) clearTimeout(debounceRef.current)
     if (!val.trim()) return
@@ -43,7 +35,6 @@ export default function ItemSearchInput({ value, onChange, onClear }) {
     setShowScanner(false)
     setScanning(true)
     try {
-      // barcode ตัวเลข → ค้นใน master ก่อน
       const res = await fetch(`${BASE}/master/items?q=${encodeURIComponent(val)}&limit=1`)
       const data = await res.json()
       if (data.length > 0) {
@@ -51,7 +42,6 @@ export default function ItemSearchInput({ value, onChange, onClear }) {
         setSuggestions([])
         onChange({ code: data[0].code, name: data[0].name })
       } else {
-        // ไม่พบ → ใส่ค่า raw ไว้ให้พิมพ์ชื่อต่อเอง
         setQuery(val)
         onChange({ code: val, name: '' })
       }
@@ -67,50 +57,27 @@ export default function ItemSearchInput({ value, onChange, onClear }) {
 
   return (
     <>
-      {showScanner && (
-        <BarcodeScanner
-          onResult={handleScanResult}
-          onClose={() => setShowScanner(false)}
-        />
-      )}
+      {showScanner && <BarcodeScanner onResult={handleScanResult} onClose={() => setShowScanner(false)} />}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {/* Input row */}
         <div style={{ display: 'flex', gap: 8 }}>
           <div style={{ flex: 1, position: 'relative' }}>
-            <input
-              style={styles.input}
-              placeholder="พิมพ์ชื่อ, รหัสสินค้า หรือ barcode..."
-              value={query}
-              onChange={e => handleInput(e.target.value)}
-              autoComplete="off"
-            />
-            {/* Dropdown */}
+            <input style={styles.input} placeholder="พิมพ์ชื่อ, รหัสสินค้า หรือ barcode..." value={query} onChange={e => handleInput(e.target.value)} autoComplete="off" />
             {suggestions.length > 0 && (
               <div style={styles.dropdown}>
                 {suggestions.map((s, i) => (
                   <div key={i} onClick={() => selectItem(s)} style={styles.dropItem}>
                     <span style={styles.dropCode}>{s.code}</span>
                     <span style={styles.dropName}>{s.name}</span>
-                    {s.barcodes?.length > 0 && (
-                      <span style={styles.dropBarcode}>🔖 {s.barcodes[0]}</span>
-                    )}
+                    {s.barcodes?.length > 0 && <span style={styles.dropBarcode}>Barcode {s.barcodes[0]}</span>}
                   </div>
                 ))}
               </div>
             )}
           </div>
-          <button
-            onClick={() => setShowScanner(true)}
-            style={styles.scanBtn}
-            disabled={scanning}
-            title="สแกน barcode"
-          >
-            {scanning ? '⏳' : '📷'}
-          </button>
+          <button onClick={() => setShowScanner(true)} style={styles.scanBtn} disabled={scanning} title="สแกน barcode">{scanning ? '⏳' : '📷'}</button>
         </div>
 
-        {/* Selected item display */}
         {value?.item_name && (
           <div style={styles.selectedBox}>
             <div>
@@ -121,23 +88,23 @@ export default function ItemSearchInput({ value, onChange, onClear }) {
           </div>
         )}
 
-        <p style={styles.hint}>ค้นหาได้ด้วย: ชื่อสินค้า · รหัสสินค้า · barcode · หรือกด 📷 สแกน</p>
+        <p style={styles.hint}>ค้นหาได้ด้วย: ชื่อสินค้า · รหัสสินค้า · barcode · หรือกดสแกน</p>
       </div>
     </>
   )
 }
 
 const styles = {
-  input: { padding: '10px 12px', borderRadius: 8, border: '1.5px solid #e2e8f0', fontSize: 14, width: '100%', outline: 'none', boxSizing: 'border-box' },
-  scanBtn: { padding: '10px 14px', background: '#f0f0f0', border: 'none', borderRadius: 8, fontSize: 20, cursor: 'pointer', flexShrink: 0 },
-  dropdown: { position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, boxShadow: '0 4px 16px rgba(0,0,0,0.12)', zIndex: 50, maxHeight: 240, overflowY: 'auto' },
-  dropItem: { padding: '10px 12px', borderBottom: '1px solid #f5f5f5', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 2 },
-  dropCode: { fontSize: 11, color: '#888', fontWeight: 600 },
-  dropName: { fontSize: 13, color: '#1a1a1a' },
-  dropBarcode: { fontSize: 11, color: '#aaa' },
-  selectedBox: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#e6faf0', padding: '10px 12px', borderRadius: 8 },
-  selectedName: { fontSize: 14, fontWeight: 600, color: '#1a1a1a' },
-  selectedCode: { fontSize: 12, color: '#888', marginTop: 2 },
-  clearBtn: { background: 'none', border: 'none', color: '#888', fontSize: 14, cursor: 'pointer', padding: '4px 8px' },
-  hint: { fontSize: 11, color: '#aaa' },
+  input: theme.input,
+  scanBtn: { ...theme.button, padding: '10px 14px', fontSize: 18, flexShrink: 0 },
+  dropdown: { position: 'absolute', top: 'calc(100% + 6px)', left: 0, right: 0, background: theme.panel, border: `1px solid ${theme.line}`, borderRadius: 12, boxShadow: theme.shadowSoft, zIndex: 50, maxHeight: 240, overflowY: 'auto' },
+  dropItem: { padding: '10px 12px', borderBottom: `1px solid ${theme.lineSoft}`, cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 2 },
+  dropCode: { fontSize: 11, color: theme.textSoft, fontWeight: 600 },
+  dropName: { fontSize: 13, color: theme.text },
+  dropBarcode: { fontSize: 11, color: theme.textMuted },
+  selectedBox: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: theme.blueSoft, padding: '10px 12px', borderRadius: 12, border: `1px solid rgba(10,132,255,0.14)` },
+  selectedName: { fontSize: 14, fontWeight: 600, color: theme.text },
+  selectedCode: { fontSize: 12, color: theme.textMuted, marginTop: 2 },
+  clearBtn: { background: 'none', border: 'none', color: theme.textMuted, fontSize: 14, cursor: 'pointer', padding: '4px 8px' },
+  hint: { fontSize: 11, color: theme.textSoft },
 }
