@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { getPalletDetail, addItem, deductItem } from './api'
 import ItemSearchInput from './ItemSearchInput'
 import { theme } from './theme'
@@ -211,7 +211,6 @@ function ContainerMap({ profile }) {
   const [map, setMap] = useState(null)
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState(null)
-  const [activeCon, setActiveCon] = useState(1)
 
   async function loadMap() {
     setLoading(true)
@@ -249,40 +248,41 @@ function ContainerMap({ profile }) {
     conData[conNo][rowLetter] = slots
   }
 
-  const containerNos = Object.keys(conData).map(Number).sort()
+  const containerNos = Object.keys(conData).map(Number).sort((a, b) => a - b)
+  const containerLabels = ['A', 'B', 'C']
+
+  function getContainerSlotData(containerNo, visualSlot) {
+    const container = conData[containerNo] || {}
+    if (visualSlot >= 1 && visualSlot <= 4) return container.A?.[String(visualSlot)]?.['1'] || null
+    const mappedSlot = visualSlot - 4
+    return container.B?.[String(mappedSlot)]?.['1'] || null
+  }
 
   return (
     <div style={{ padding: '8px 10px' }}>
       <div style={sectionStyles.panel}>
-        <div style={sectionStyles.headerRow}><div style={sectionStyles.title}>Computer Cabinet</div><div style={sectionStyles.sub}>เลือกตู้คอนเทนเนอร์แล้วแตะช่องที่ต้องการ</div></div>
-        <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
-          {containerNos.map(no => (
-            <button key={no} onClick={() => setActiveCon(no)} style={{ ...sectionStyles.tab, ...(activeCon === no ? sectionStyles.tabActive : null) }}>ตู้ {no}</button>
-          ))}
-        </div>
+        <div style={sectionStyles.headerRow}><div style={sectionStyles.title}>Computer Cabinet</div><div style={sectionStyles.sub}>แตะช่องที่ต้องการจาก layout แนวตั้ง</div></div>
 
-        {conData[activeCon] && (
-          <div style={{ background: theme.panel, borderRadius: 14, padding: 12, border: `1px solid ${theme.lineSoft}` }}>
-            <p style={{ fontSize: 13, fontWeight: 700, color: theme.textMuted, marginBottom: 10 }}>ตู้คอนเทนเนอร์ที่ {activeCon}</p>
-            <div style={cs.grid}><div style={cs.rowLabel} />{[1, 2, 3, 4].map(s => <div key={s} style={cs.colHeader}>ช่อง {s}</div>)}</div>
-            {Object.entries(conData[activeCon]).sort(([a], [b]) => a.localeCompare(b)).map(([rowLetter, slots]) => (
-              <div key={rowLetter} style={cs.grid}>
-                <div style={cs.rowLabel}>แถว {rowLetter}</div>
-                {[1, 2, 3, 4].map(slot => {
-                  const data = slots[String(slot)]?.['1']
-                  if (!data) return <div key={slot} style={{ ...cs.cell, background: '#fafafb', border: `1px dashed ${theme.line}` }}><span style={cs.emptyText}>ไม่มี</span></div>
-                  const hasItems = data.item_count > 0
+        <div style={cs.columnsWrap}>
+          {containerNos.map((containerNo, idx) => (
+            <div key={containerNo} style={cs.columnCard}>
+              <div style={cs.slotGrid}>
+                {[4, 3, 2, 1].map(leftSlot => {
+                  const rightSlot = leftSlot + 4
+                  const leftData = getContainerSlotData(containerNo, leftSlot)
+                  const rightData = getContainerSlotData(containerNo, rightSlot)
                   return (
-                    <div key={slot} onClick={() => handleCellClick(data)} style={{ ...cs.cell, background: hasItems ? '#f3fbf5' : '#fafafb', border: modal?.label === data.label ? `2px solid ${theme.blue}` : hasItems ? '1px solid rgba(52,199,89,0.35)' : `1px solid ${theme.line}` }}>
-                      <span style={cs.labelText}>{data.label}</span>
-                      {hasItems ? <span style={cs.count}>{data.item_count}</span> : <span style={cs.plus}>+</span>}
-                    </div>
+                    <Fragment key={`${containerNo}-${leftSlot}`}>
+                      <ContainerCell data={leftData} visualSlot={leftSlot} modal={modal} onClick={handleCellClick} />
+                      <ContainerCell data={rightData} visualSlot={rightSlot} modal={modal} onClick={handleCellClick} />
+                    </Fragment>
                   )
                 })}
               </div>
-            ))}
-          </div>
-        )}
+              <div style={cs.columnLabel}>{containerLabels[idx] || `C${containerNo}`}</div>
+            </div>
+          ))}
+        </div>
       </div>
 
       {modal && <PalletModal modal={modal} profile={profile} onClose={() => { setModal(null); loadMap() }} onRefresh={items => setModal(m => ({ ...m, items }))} />}
@@ -290,15 +290,43 @@ function ContainerMap({ profile }) {
   )
 }
 
+function ContainerCell({ data, visualSlot, modal, onClick }) {
+  const hasItems = (data?.item_count || 0) > 0
+  const isActive = modal?.label === data?.label
+  return (
+    <div
+      onClick={() => data && onClick(data)}
+      style={{
+        ...cs.cell,
+        cursor: data ? 'pointer' : 'default',
+        background: hasItems ? '#f3fbf5' : '#fafafb',
+        border: isActive ? `2px solid ${theme.blue}` : hasItems ? '1px solid rgba(52,199,89,0.35)' : `1px solid ${theme.line}`,
+      }}
+    >
+      <div style={cs.slotNumber}>{visualSlot}</div>
+      {data ? (
+        <>
+          <span style={cs.labelText}>{data.label}</span>
+          {hasItems ? <span style={cs.count}>{data.item_count}</span> : <span style={cs.plus}>+</span>}
+        </>
+      ) : (
+        <span style={cs.emptyText}>ไม่มี</span>
+      )}
+    </div>
+  )
+}
+
 const cs = {
-  grid: { display: 'grid', gridTemplateColumns: '52px 1fr 1fr 1fr 1fr', gap: 6, marginBottom: 6 },
-  colHeader: { textAlign: 'center', fontSize: 11, color: theme.textSoft, fontWeight: 600 },
-  rowLabel: { display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: theme.textMuted, background: theme.toolbar, borderRadius: 10, border: `1px solid ${theme.lineSoft}` },
-  cell: { borderRadius: 10, padding: '8px 4px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 64, cursor: 'pointer' },
-  labelText: { fontSize: 10, color: theme.textSoft, marginBottom: 4 },
-  count: { fontSize: 20, fontWeight: 700, color: '#208142' },
-  plus: { fontSize: 20, color: '#c7c7cc' },
-  emptyText: { fontSize: 11, color: '#c7c7cc' },
+  columnsWrap: { display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 10 },
+  columnCard: { background: theme.panel, borderRadius: 18, padding: 10, border: `1px solid ${theme.lineSoft}`, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 },
+  slotGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, width: '100%' },
+  cell: { borderRadius: 12, padding: '8px 4px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 78, textAlign: 'center' },
+  slotNumber: { fontSize: 24, fontWeight: 700, color: theme.text, lineHeight: 1 },
+  labelText: { fontSize: 10, color: theme.textSoft, marginTop: 6, lineHeight: 1.2 },
+  count: { fontSize: 18, fontWeight: 700, color: '#208142', marginTop: 4 },
+  plus: { fontSize: 18, color: '#c7c7cc', marginTop: 4 },
+  emptyText: { fontSize: 11, color: '#c7c7cc', marginTop: 6 },
+  columnLabel: { display: 'flex', alignItems: 'center', justifyContent: 'center', width: 72, height: 40, borderRadius: 12, background: theme.toolbar, border: `1px solid ${theme.lineSoft}`, fontSize: 22, fontWeight: 800, color: theme.textMuted, letterSpacing: '0.18em', paddingLeft: '0.18em' },
 }
 
 const sectionStyles = {
