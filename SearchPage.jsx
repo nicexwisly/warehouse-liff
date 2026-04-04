@@ -89,33 +89,31 @@ export default function SearchPage({ profile }) {
           {searched && !loading && <p style={styles.count}>{results.length > 0 ? `พบ ${results.length} รายการ` : 'ไม่พบสินค้านี้ในระบบ'}</p>}
 
           <div style={styles.listShell}>
-            <div style={styles.listScroller}>
-              <div style={styles.listHeader}>
-                <div>Name</div>
-                <div>Code</div>
-                <div>Location</div>
-                <div style={{ textAlign: 'right' }}>Qty</div>
-              </div>
-              {results.map((item, index) => (
-                <div key={item.id} style={{ ...styles.row, ...(index === 0 ? styles.rowSelected : null) }}>
-                  <div style={styles.nameCell}>
-                    <div style={styles.itemIcon}>📦</div>
-                    <div style={styles.nameTextWrap}>
-                      <p style={styles.itemName}>{item.item_name}</p>
-                      <p style={styles.itemMeta}>พาเลท {item.pallet_code}</p>
-                    </div>
-                  </div>
-                  <div style={styles.codeCell}>{item.item_code}</div>
-                  <div style={styles.locationCell}>
-                    <div style={styles.locationBadge}>{item.location_label}</div>
-                  </div>
-                  <div style={styles.qtyCell}>
-                    <div style={styles.qty}>{item.qty}</div>
-                    <button onClick={() => handleDeduct(item)} style={styles.rowAction}>หยิบออก</button>
+            <div style={styles.listHeader}>
+              <div>Name</div>
+              <div>Code</div>
+              <div>Location</div>
+              <div style={{ textAlign: 'right' }}>Qty</div>
+            </div>
+            {results.map((item, index) => (
+              <div key={item.id} style={{ ...styles.row, ...(index === 0 ? styles.rowSelected : null) }}>
+                <div style={styles.nameCell}>
+                  <div style={styles.itemIcon}>📦</div>
+                  <div style={styles.nameTextWrap}>
+                    <p style={styles.itemName}>{item.item_name}</p>
+                    <p style={styles.itemMeta}>พาเลท {item.pallet_code}</p>
                   </div>
                 </div>
-              ))}
-            </div>
+                <div style={styles.codeCell}>{item.item_code}</div>
+                <div style={styles.locationCell}>
+                  <div style={styles.locationBadge}>{item.location_label}</div>
+                </div>
+                <div style={styles.qtyCell}>
+                  <div style={styles.qty}>{item.qty}</div>
+                  <button onClick={() => handleDeduct(item)} style={styles.rowAction}>หยิบออก</button>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </div>
@@ -144,36 +142,31 @@ const styles = {
     overflow: 'hidden',
     boxShadow: theme.shadowSoft,
   },
-  listScroller: {
-    overflowX: 'auto',
-    WebkitOverflowScrolling: 'touch',
-  },
   listHeader: {
     display: 'grid',
-    gridTemplateColumns: 'minmax(180px, 1.8fr) minmax(78px, 1fr) minmax(92px, 1fr) minmax(88px, 0.8fr)',
-    minWidth: 520,
-    padding: '10px 12px',
-    fontSize: 'clamp(11px, 2.8vw, 12px)',
+    gridTemplateColumns: 'minmax(0, 1.95fr) minmax(0, 0.9fr) minmax(0, 1fr) minmax(0, 1.15fr)',
+    padding: '9px 10px',
+    fontSize: 'clamp(10px, 2.55vw, 12px)',
     fontWeight: 600,
     color: theme.textSoft,
     background: theme.toolbarStrong,
     borderBottom: `1px solid ${theme.line}`,
-    columnGap: 10,
+    columnGap: 8,
+    alignItems: 'center',
   },
   row: {
     display: 'grid',
-    gridTemplateColumns: 'minmax(180px, 1.8fr) minmax(78px, 1fr) minmax(92px, 1fr) minmax(88px, 0.8fr)',
-    minWidth: 520,
-    padding: '10px 12px',
+    gridTemplateColumns: 'minmax(0, 1.95fr) minmax(0, 0.9fr) minmax(0, 1fr) minmax(0, 1.15fr)',
+    padding: '10px 10px',
     alignItems: 'center',
     borderBottom: `1px solid ${theme.lineSoft}`,
-    columnGap: 10,
+    columnGap: 8,
   },
   rowSelected: { background: theme.blueSoft },
   nameCell: { display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 },
   itemIcon: {
-    width: 'clamp(26px, 7vw, 30px)',
-    height: 'clamp(26px, 7vw, 30px)',
+    width: 'clamp(24px, 6.4vw, 30px)',
+    height: 'clamp(24px, 6.4vw, 30px)',
     borderRadius: 8,
     display: 'flex',
     alignItems: 'center',
@@ -181,11 +174,11 @@ const styles = {
     background: theme.toolbar,
     border: `1px solid ${theme.lineSoft}`,
     flexShrink: 0,
-    fontSize: 'clamp(14px, 3.8vw, 16px)',
+    fontSize: 'clamp(13px, 3.4vw, 16px)',
   },
   nameTextWrap: { minWidth: 0 },
   itemName: {
-    fontSize: 'clamp(12px, 3.2vw, 14px)',
+    fontSize: 'clamp(11px, 3vw, 14px)',
     fontWeight: 600,
     color: theme.text,
     whiteSpace: 'nowrap',
@@ -193,7 +186,7 @@ const styles = {
     textOverflow: 'ellipsis',
   },
   itemMeta: {
-    fontSize: 'clamp(10px, 2.7vw, 12px)',
+    fontSize: 'clamp(9px, 2.5vw, 12px)',
     color: theme.textSoft,
     marginTop: 2,
     whiteSpace: 'nowrap',
@@ -201,15 +194,13 @@ const styles = {
     textOverflow: 'ellipsis',
   },
   codeCell: {
-    fontSize: 'clamp(11px, 2.9vw, 13px)',
+    fontSize: 'clamp(10px, 2.6vw, 13px)',
     color: theme.textMuted,
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
   },
-  locationCell: {
-    minWidth: 0,
-  },
+  locationCell: { minWidth: 0 },
   locationBadge: {
     display: 'inline-flex',
     maxWidth: '100%',
@@ -217,21 +208,35 @@ const styles = {
     color: theme.blue,
     border: '1px solid rgba(10,132,255,0.18)',
     borderRadius: 999,
-    padding: '4px 8px',
-    fontSize: 'clamp(10px, 2.7vw, 12px)',
+    padding: '4px 7px',
+    fontSize: 'clamp(9px, 2.45vw, 12px)',
     fontWeight: 600,
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
   },
-  qtyCell: { display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 5, minWidth: 0 },
-  qty: { fontSize: 'clamp(16px, 4.8vw, 20px)', fontWeight: 700, color: theme.text, lineHeight: 1 },
+  qtyCell: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 6,
+    minWidth: 0,
+  },
+  qty: {
+    fontSize: 'clamp(14px, 4vw, 20px)',
+    fontWeight: 700,
+    color: theme.text,
+    lineHeight: 1,
+    minWidth: 'clamp(18px, 5vw, 26px)',
+    textAlign: 'right',
+  },
   rowAction: {
     ...theme.button,
-    padding: '6px 8px',
-    fontSize: 'clamp(10px, 2.7vw, 12px)',
+    padding: '5px 8px',
+    fontSize: 'clamp(9px, 2.45vw, 12px)',
     color: theme.red,
     background: theme.redSoft,
     whiteSpace: 'nowrap',
+    flexShrink: 0,
   },
 }
