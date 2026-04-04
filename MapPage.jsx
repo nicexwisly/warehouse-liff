@@ -276,8 +276,12 @@ function ContainerMap({ profile }) {
 
   const containerNos = Object.keys(conData).map(Number).sort()
   const groupLabels = ['A', 'B', 'C', 'D', 'E', 'F']
-  const leftSlots = [4, 3, 2, 1]
-  const rightSlots = [4, 3, 2, 1]
+  const rowPairs = [
+    { leftSlot: 4, rightSlot: 4, leftNumber: 4, rightNumber: 8 },
+    { leftSlot: 3, rightSlot: 3, leftNumber: 3, rightNumber: 7 },
+    { leftSlot: 2, rightSlot: 2, leftNumber: 2, rightNumber: 6 },
+    { leftSlot: 1, rightSlot: 1, leftNumber: 1, rightNumber: 5 },
+  ]
 
   function getCellData(containerNo, rowLetter, slot) {
     return conData[containerNo]?.[rowLetter]?.[String(slot)]?.['1'] || null
@@ -319,7 +323,7 @@ function ContainerMap({ profile }) {
     <div style={{ padding: '8px 10px' }}>
       <div style={cs.wrapper}>
         <div style={cs.headerRow}>
-          <p style={cs.sectionTitle}>Container ST129</p>
+          <p style={cs.sectionTitle}>Computer Cabinet</p>
           <p style={cs.sectionHint}>แตะช่องที่ต้องการจาก layout แนวตั้ง</p>
         </div>
 
@@ -327,14 +331,14 @@ function ContainerMap({ profile }) {
           {containerNos.map((containerNo, index) => (
             <div key={containerNo} style={cs.groupCard}>
               <div style={cs.groupSlots}>
-                {leftSlots.map((slot, rowIndex) => (
-                  <div key={`left-${containerNo}-${slot}`} style={cs.slotWrap}>
-                    {renderCell(getCellData(containerNo, 'A', slot), leftSlots[rowIndex])}
-                  </div>
-                ))}
-                {rightSlots.map((slot, rowIndex) => (
-                  <div key={`right-${containerNo}-${slot}`} style={cs.slotWrap}>
-                    {renderCell(getCellData(containerNo, 'B', slot), rightSlots[rowIndex] + 4)}
+                {rowPairs.map(pair => (
+                  <div key={`row-${containerNo}-${pair.leftNumber}-${pair.rightNumber}`} style={cs.rowPair}>
+                    <div style={cs.slotWrap}>
+                      {renderCell(getCellData(containerNo, 'A', pair.leftSlot), pair.leftNumber)}
+                    </div>
+                    <div style={cs.slotWrap}>
+                      {renderCell(getCellData(containerNo, 'B', pair.rightSlot), pair.rightNumber)}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -355,12 +359,13 @@ const cs = {
   headerRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, marginBottom: 10 },
   sectionTitle: { fontSize: 12, fontWeight: 700, color: '#1a1a1a', lineHeight: 1.2 },
   sectionHint: { fontSize: 10, color: '#8d8d95', textAlign: 'right', lineHeight: 1.3, maxWidth: 120 },
-  groupsGrid: { display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 6 },
+  groupsGrid: { display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 6, alignItems: 'stretch' },
   groupCard: { background: '#f8f8f8', borderRadius: 14, padding: '8px 5px 10px', border: '1px solid #ededed', minWidth: 0 },
-  groupSlots: { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 6 },
+  groupSlots: { display: 'grid', gridTemplateColumns: '1fr', gap: 6 },
+  rowPair: { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 6 },
   slotWrap: { minWidth: 0 },
   groupLabel: { marginTop: 8, textAlign: 'center', fontSize: 13, fontWeight: 700, color: '#666', letterSpacing: '0.28em', paddingLeft: '0.28em' },
-  cell: { borderRadius: 14, padding: '8px 3px 7px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', minHeight: 90, cursor: 'pointer', minWidth: 0 },
+  cell: { borderRadius: 14, padding: '7px 3px 6px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', minHeight: 88, cursor: 'pointer', minWidth: 0 },
   emptyCell: { background: '#fafafa', border: '1.5px dashed #e4e4e7' },
   number: { fontSize: 13, fontWeight: 800, color: '#1a1a1a', lineHeight: 1 },
   labelText: { fontSize: 6.5, color: '#8f8f97', lineHeight: 1.15, marginTop: 4, textAlign: 'center', wordBreak: 'break-word' },
