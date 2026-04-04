@@ -323,7 +323,7 @@ function ContainerMap({ profile }) {
     <div style={{ padding: '8px 10px' }}>
       <div style={cs.wrapper}>
         <div style={cs.headerRow}>
-          <p style={cs.sectionTitle}>Computer Cabinet</p>
+          <p style={cs.sectionTitle}>Container ST129</p>
           <p style={cs.sectionHint}>แตะช่องที่ต้องการจาก layout แนวตั้ง</p>
         </div>
 
