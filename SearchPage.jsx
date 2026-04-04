@@ -89,31 +89,33 @@ export default function SearchPage({ profile }) {
           {searched && !loading && <p style={styles.count}>{results.length > 0 ? `พบ ${results.length} รายการ` : 'ไม่พบสินค้านี้ในระบบ'}</p>}
 
           <div style={styles.listShell}>
-            <div style={styles.listHeader}>
-              <div>Name</div>
-              <div>Code</div>
-              <div>Location</div>
-              <div style={{ textAlign: 'right' }}>Qty</div>
-            </div>
-            {results.map((item, index) => (
-              <div key={item.id} style={{ ...styles.row, ...(index === 0 ? styles.rowSelected : null) }}>
-                <div style={styles.nameCell}>
-                  <div style={styles.itemIcon}>📦</div>
-                  <div>
-                    <p style={styles.itemName}>{item.item_name}</p>
-                    <p style={styles.itemMeta}>พาเลท {item.pallet_code}</p>
+            <div style={styles.listScroller}>
+              <div style={styles.listHeader}>
+                <div>Name</div>
+                <div>Code</div>
+                <div>Location</div>
+                <div style={{ textAlign: 'right' }}>Qty</div>
+              </div>
+              {results.map((item, index) => (
+                <div key={item.id} style={{ ...styles.row, ...(index === 0 ? styles.rowSelected : null) }}>
+                  <div style={styles.nameCell}>
+                    <div style={styles.itemIcon}>📦</div>
+                    <div style={styles.nameTextWrap}>
+                      <p style={styles.itemName}>{item.item_name}</p>
+                      <p style={styles.itemMeta}>พาเลท {item.pallet_code}</p>
+                    </div>
+                  </div>
+                  <div style={styles.codeCell}>{item.item_code}</div>
+                  <div style={styles.locationCell}>
+                    <div style={styles.locationBadge}>{item.location_label}</div>
+                  </div>
+                  <div style={styles.qtyCell}>
+                    <div style={styles.qty}>{item.qty}</div>
+                    <button onClick={() => handleDeduct(item)} style={styles.rowAction}>หยิบออก</button>
                   </div>
                 </div>
-                <div style={styles.codeCell}>{item.item_code}</div>
-                <div>
-                  <div style={styles.locationBadge}>{item.location_label}</div>
-                </div>
-                <div style={styles.qtyCell}>
-                  <div style={styles.qty}>{item.qty}</div>
-                  <button onClick={() => handleDeduct(item)} style={styles.rowAction}>หยิบออก</button>
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
       </div>
@@ -134,17 +136,102 @@ const styles = {
   body: { flex: 1, overflowY: 'auto', padding: 14 },
   pathBar: { background: theme.toolbar, border: `1px solid ${theme.lineSoft}`, borderRadius: 10, padding: '8px 12px', fontSize: 12, color: theme.textMuted, marginBottom: 12 },
   count: { fontSize: 13, color: theme.textMuted, marginBottom: 10 },
-  listShell: { background: theme.panel, borderRadius: 14, border: `1px solid ${theme.line}`, overflow: 'hidden', boxShadow: theme.shadowSoft },
-  listHeader: { display: 'grid', gridTemplateColumns: '1.8fr 1fr 1fr 0.8fr', padding: '10px 14px', fontSize: 12, fontWeight: 600, color: theme.textSoft, background: theme.toolbarStrong, borderBottom: `1px solid ${theme.line}` },
-  row: { display: 'grid', gridTemplateColumns: '1.8fr 1fr 1fr 0.8fr', padding: '12px 14px', alignItems: 'center', borderBottom: `1px solid ${theme.lineSoft}` },
+
+  listShell: {
+    background: theme.panel,
+    borderRadius: 14,
+    border: `1px solid ${theme.line}`,
+    overflow: 'hidden',
+    boxShadow: theme.shadowSoft,
+  },
+  listScroller: {
+    overflowX: 'auto',
+    WebkitOverflowScrolling: 'touch',
+  },
+  listHeader: {
+    display: 'grid',
+    gridTemplateColumns: 'minmax(180px, 1.8fr) minmax(78px, 1fr) minmax(92px, 1fr) minmax(88px, 0.8fr)',
+    minWidth: 520,
+    padding: '10px 12px',
+    fontSize: 'clamp(11px, 2.8vw, 12px)',
+    fontWeight: 600,
+    color: theme.textSoft,
+    background: theme.toolbarStrong,
+    borderBottom: `1px solid ${theme.line}`,
+    columnGap: 10,
+  },
+  row: {
+    display: 'grid',
+    gridTemplateColumns: 'minmax(180px, 1.8fr) minmax(78px, 1fr) minmax(92px, 1fr) minmax(88px, 0.8fr)',
+    minWidth: 520,
+    padding: '10px 12px',
+    alignItems: 'center',
+    borderBottom: `1px solid ${theme.lineSoft}`,
+    columnGap: 10,
+  },
   rowSelected: { background: theme.blueSoft },
-  nameCell: { display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 },
-  itemIcon: { width: 30, height: 30, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', background: theme.toolbar, border: `1px solid ${theme.lineSoft}` },
-  itemName: { fontSize: 14, fontWeight: 600, color: theme.text },
-  itemMeta: { fontSize: 12, color: theme.textSoft, marginTop: 2 },
-  codeCell: { fontSize: 13, color: theme.textMuted },
-  locationBadge: { display: 'inline-flex', background: '#f0f6ff', color: theme.blue, border: '1px solid rgba(10,132,255,0.18)', borderRadius: 999, padding: '4px 10px', fontSize: 12, fontWeight: 600 },
-  qtyCell: { display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 },
-  qty: { fontSize: 20, fontWeight: 700, color: theme.text },
-  rowAction: { ...theme.button, padding: '6px 10px', fontSize: 12, color: theme.red, background: theme.redSoft },
+  nameCell: { display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 },
+  itemIcon: {
+    width: 'clamp(26px, 7vw, 30px)',
+    height: 'clamp(26px, 7vw, 30px)',
+    borderRadius: 8,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    background: theme.toolbar,
+    border: `1px solid ${theme.lineSoft}`,
+    flexShrink: 0,
+    fontSize: 'clamp(14px, 3.8vw, 16px)',
+  },
+  nameTextWrap: { minWidth: 0 },
+  itemName: {
+    fontSize: 'clamp(12px, 3.2vw, 14px)',
+    fontWeight: 600,
+    color: theme.text,
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+  },
+  itemMeta: {
+    fontSize: 'clamp(10px, 2.7vw, 12px)',
+    color: theme.textSoft,
+    marginTop: 2,
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+  },
+  codeCell: {
+    fontSize: 'clamp(11px, 2.9vw, 13px)',
+    color: theme.textMuted,
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+  },
+  locationCell: {
+    minWidth: 0,
+  },
+  locationBadge: {
+    display: 'inline-flex',
+    maxWidth: '100%',
+    background: '#f0f6ff',
+    color: theme.blue,
+    border: '1px solid rgba(10,132,255,0.18)',
+    borderRadius: 999,
+    padding: '4px 8px',
+    fontSize: 'clamp(10px, 2.7vw, 12px)',
+    fontWeight: 600,
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+  },
+  qtyCell: { display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 5, minWidth: 0 },
+  qty: { fontSize: 'clamp(16px, 4.8vw, 20px)', fontWeight: 700, color: theme.text, lineHeight: 1 },
+  rowAction: {
+    ...theme.button,
+    padding: '6px 8px',
+    fontSize: 'clamp(10px, 2.7vw, 12px)',
+    color: theme.red,
+    background: theme.redSoft,
+    whiteSpace: 'nowrap',
+  },
 }
