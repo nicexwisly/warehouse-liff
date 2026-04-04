@@ -66,21 +66,16 @@ function getContainerGroups(containerHighlights) {
   return numbers.sort((a, b) => a - b)
 }
 
-function SlotBox({ number, active, qty }) {
+function MiniSlot({ number, active, qty }) {
   return (
-    <div
-      style={{
-        ...mapStyles.slotBox,
-        ...(active ? mapStyles.slotBoxActive : null),
-      }}
-    >
-      <span style={mapStyles.slotNumber}>{number}</span>
-      {active ? <span style={mapStyles.slotQty}>{qty}</span> : <span style={mapStyles.slotPlus}>+</span>}
+    <div style={{ ...mapStyles.miniSlot, ...(active ? mapStyles.miniSlotActive : null) }}>
+      {active && <div style={mapStyles.miniSlotBubble}>{qty}</div>}
+      <span style={{ ...mapStyles.miniSlotText, ...(active ? mapStyles.miniSlotTextActive : null) }}>{number}</span>
     </div>
   )
 }
 
-function ContainerColumn({ group, containerNo, highlights }) {
+function MiniContainerGroup({ group, containerNo, highlights }) {
   const rows = [
     [4, 8],
     [3, 7],
@@ -89,34 +84,34 @@ function ContainerColumn({ group, containerNo, highlights }) {
   ]
 
   return (
-    <div style={mapStyles.containerColumnWrap}>
-      <div style={mapStyles.containerColumnGrid}>
+    <div style={mapStyles.miniGroupCard}>
+      <div style={mapStyles.miniGroupHeader}>{group}</div>
+      <div style={mapStyles.miniGroupGrid}>
         {rows.map(([left, right]) => {
           const leftData = highlights[`${containerNo}-${group}-${left}`]
           const rightData = highlights[`${containerNo}-${group}-${right}`]
           return (
             <div key={`${group}-${left}-${right}`} style={{ display: 'contents' }}>
-              <SlotBox number={left} active={!!leftData} qty={leftData?.qty} />
-              <SlotBox number={right} active={!!rightData} qty={rightData?.qty} />
+              <MiniSlot number={left} active={!!leftData} qty={leftData?.qty} />
+              <MiniSlot number={right} active={!!rightData} qty={rightData?.qty} />
             </div>
           )
         })}
       </div>
-      <div style={mapStyles.groupLabelBottom}>{group}</div>
     </div>
   )
 }
 
-function ContainerSection({ containerNo, highlights }) {
+function ContainerPopupSection({ containerNo, highlights }) {
   return (
-    <div style={mapStyles.sectionCard}>
-      <div style={mapStyles.sectionHeaderRow}>
-        <div style={mapStyles.sectionTitle}>ตู้คอน {containerNo}</div>
-        <div style={mapStyles.sectionHint}>ไฮไลท์ทุกจุดที่พบ</div>
+    <div style={mapStyles.popupSectionCard}>
+      <div style={mapStyles.popupSectionHeader}>
+        <div style={mapStyles.popupSectionTitle}>Computer Cabinet</div>
+        <div style={mapStyles.popupSectionHint}>ไฮไลท์ทุกจุดที่พบ</div>
       </div>
-      <div style={mapStyles.containerColumnsRow}>
+      <div style={mapStyles.miniGroupsRow}>
         {['A', 'B', 'C'].map(group => (
-          <ContainerColumn key={`${containerNo}-${group}`} group={group} containerNo={containerNo} highlights={highlights} />
+          <MiniContainerGroup key={`${containerNo}-${group}`} group={group} containerNo={containerNo} highlights={highlights} />
         ))}
       </div>
     </div>
@@ -131,13 +126,13 @@ function TentSection({ highlights }) {
   if (rows.length === 0 || slots.length === 0 || levels.length === 0) return null
 
   return (
-    <div style={mapStyles.sectionCard}>
-      <div style={mapStyles.sectionHeaderRow}>
-        <div style={mapStyles.sectionTitle}>พาเลท</div>
-        <div style={mapStyles.sectionHint}>แสดงตำแหน่งที่พบ</div>
+    <div style={mapStyles.popupSectionCard}>
+      <div style={mapStyles.popupSectionHeader}>
+        <div style={mapStyles.popupSectionTitle}>Tent / Pallet</div>
+        <div style={mapStyles.popupSectionHint}>ไฮไลท์ทุกจุดที่พบ</div>
       </div>
       <div style={mapStyles.tentScroll}>
-        <div style={{ ...mapStyles.tentGrid, gridTemplateColumns: `40px repeat(${slots.length}, minmax(56px, 1fr))` }}>
+        <div style={{ ...mapStyles.tentGrid, gridTemplateColumns: `38px repeat(${slots.length}, minmax(48px, 1fr))` }}>
           <div />
           {slots.map(slot => <div key={`slot-${slot}`} style={mapStyles.tentColHeader}>ล็อค {slot}</div>)}
           {rows.map(row => (
@@ -150,7 +145,7 @@ function TentSection({ highlights }) {
                     return (
                       <div key={`${row}-${slot}-${level}`} style={{ ...mapStyles.tentCell, ...(data ? mapStyles.tentCellActive : null) }}>
                         <span style={mapStyles.tentLevelText}>ชั้น {level}</span>
-                        {data ? <span style={mapStyles.tentQty}>{data.qty}</span> : <span style={mapStyles.slotPlus}>+</span>}
+                        {data ? <span style={mapStyles.tentQty}>{data.qty}</span> : null}
                       </div>
                     )
                   })}
@@ -166,8 +161,8 @@ function TentSection({ highlights }) {
 
 function SummarySection({ summary }) {
   return (
-    <div style={mapStyles.sectionCard}>
-      <div style={mapStyles.sectionTitle}>สรุปตำแหน่ง</div>
+    <div style={mapStyles.popupSectionCard}>
+      <div style={mapStyles.popupSectionTitle}>สรุปตำแหน่ง</div>
       <div style={mapStyles.summaryList}>
         {summary.map((item, index) => (
           <div key={`${item.label}-${index}`} style={mapStyles.summaryRow}>
@@ -199,7 +194,7 @@ function SearchMapModal({ results, onClose }) {
 
         <div style={mapStyles.modalBody}>
           {hasContainers && containerNos.map(containerNo => (
-            <ContainerSection key={`con-${containerNo}`} containerNo={containerNo} highlights={containerHighlights} />
+            <ContainerPopupSection key={`con-${containerNo}`} containerNo={containerNo} highlights={containerHighlights} />
           ))}
           {hasTent && <TentSection highlights={tentHighlights} />}
           <SummarySection summary={summary} />
@@ -369,7 +364,7 @@ const mapStyles = {
   overlay: {
     position: 'fixed',
     inset: 0,
-    background: 'rgba(20,20,24,0.28)',
+    background: 'rgba(20,20,24,0.24)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -378,10 +373,10 @@ const mapStyles = {
     backdropFilter: 'blur(2px)',
   },
   modalCard: {
-    width: 'min(100%, 560px)',
+    width: 'min(100%, 420px)',
     maxHeight: 'calc(100vh - 24px)',
     overflow: 'hidden',
-    borderRadius: 22,
+    borderRadius: 24,
     background: theme.window,
     border: `1px solid ${theme.line}`,
     boxShadow: theme.shadow,
@@ -389,7 +384,7 @@ const mapStyles = {
     flexDirection: 'column',
   },
   modalHeader: {
-    padding: '14px 16px 12px',
+    padding: '12px 16px 10px',
     borderBottom: `1px solid ${theme.lineSoft}`,
     display: 'flex',
     justifyContent: 'space-between',
@@ -397,20 +392,108 @@ const mapStyles = {
     gap: 12,
   },
   modalEyebrow: { fontSize: 11, color: theme.textSoft, marginBottom: 2 },
-  modalTitle: { fontSize: 22, fontWeight: 700, color: theme.text },
-  closeBtn: { ...theme.button, padding: '8px 12px', fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap' },
-  modalBody: { padding: 14, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12 },
-  sectionCard: { background: theme.panel, border: `1px solid ${theme.lineSoft}`, borderRadius: 18, padding: 12, boxShadow: theme.shadowSoft },
-  sectionHeaderRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginBottom: 10, flexWrap: 'wrap' },
-  sectionTitle: { fontSize: 14, fontWeight: 700, color: theme.text },
-  sectionHint: { fontSize: 11, color: theme.textSoft },
-  containerColumnsRow: { display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8 },
-  containerColumnWrap: { display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 },
-  containerColumnGrid: { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 6 },
-  groupLabelBottom: { textAlign: 'center', fontSize: 13, fontWeight: 700, color: theme.textMuted, letterSpacing: '0.2em' },
-  slotBox: {
-    minHeight: 52,
+  modalTitle: { fontSize: 20, fontWeight: 700, color: theme.text },
+  closeBtn: {
+    ...theme.button,
+    padding: '8px 12px',
+    fontSize: 12,
+    fontWeight: 600,
+    whiteSpace: 'nowrap',
+    borderRadius: 999,
+    background: '#ffffff',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+  },
+  modalBody: { padding: 14, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14 },
+  popupSectionCard: {
+    background: theme.panel,
+    border: `1px solid ${theme.lineSoft}`,
+    borderRadius: 22,
+    padding: 14,
+    boxShadow: theme.shadowSoft,
+  },
+  popupSectionHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 12,
+  },
+  popupSectionTitle: { fontSize: 13, fontWeight: 700, color: theme.text },
+  popupSectionHint: { fontSize: 11, color: theme.textSoft },
+  miniGroupsRow: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+    gap: 10,
+  },
+  miniGroupCard: {
+    borderRadius: 18,
+    border: `1px solid ${theme.lineSoft}`,
+    background: '#f8f8fa',
+    padding: 8,
+    minWidth: 0,
+  },
+  miniGroupHeader: {
+    textAlign: 'center',
+    fontSize: 12,
+    fontWeight: 600,
+    color: theme.textSoft,
+    marginBottom: 8,
+  },
+  miniGroupGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+    gap: 8,
+  },
+  miniSlot: {
+    position: 'relative',
+    height: 50,
     borderRadius: 12,
+    border: `1px solid ${theme.lineSoft}`,
+    background: theme.window,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  miniSlotActive: {
+    background: '#eef6ff',
+    border: '1px solid rgba(59,130,246,0.55)',
+    boxShadow: 'inset 0 0 0 1px rgba(59,130,246,0.14)',
+  },
+  miniSlotText: {
+    fontSize: 20,
+    fontWeight: 600,
+    color: theme.textMuted,
+    lineHeight: 1,
+  },
+  miniSlotTextActive: {
+    color: '#2563eb',
+    fontWeight: 700,
+  },
+  miniSlotBubble: {
+    position: 'absolute',
+    top: -8,
+    right: -6,
+    minWidth: 22,
+    height: 22,
+    padding: '0 6px',
+    borderRadius: 999,
+    background: '#3b82f6',
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: 700,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    boxShadow: '0 4px 10px rgba(59,130,246,0.22)',
+  },
+  tentScroll: { overflowX: 'auto' },
+  tentGrid: { display: 'grid', gap: 6, minWidth: 250 },
+  tentColHeader: { textAlign: 'center', fontSize: 11, color: theme.textSoft, fontWeight: 600 },
+  tentRowHeader: { display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: theme.textMuted, background: theme.toolbar, borderRadius: 10, border: `1px solid ${theme.lineSoft}` },
+  tentSlotStack: { display: 'flex', flexDirection: 'column', gap: 4 },
+  tentCell: {
+    minHeight: 40,
+    borderRadius: 10,
     border: `1px solid ${theme.lineSoft}`,
     background: theme.window,
     display: 'flex',
@@ -418,23 +501,30 @@ const mapStyles = {
     alignItems: 'center',
     justifyContent: 'center',
     gap: 2,
-    padding: '6px 4px',
   },
-  slotBoxActive: { background: '#eef6ff', border: '1px solid rgba(10,132,255,0.28)' },
-  slotNumber: { fontSize: 16, fontWeight: 700, color: theme.text },
-  slotQty: { fontSize: 11, fontWeight: 700, color: theme.blue },
-  slotPlus: { fontSize: 14, color: '#c7c7cc' },
-  tentScroll: { overflowX: 'auto' },
-  tentGrid: { display: 'grid', gap: 6, minWidth: 260 },
-  tentColHeader: { textAlign: 'center', fontSize: 11, color: theme.textSoft, fontWeight: 600 },
-  tentRowHeader: { display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: theme.textMuted, background: theme.toolbar, borderRadius: 10, border: `1px solid ${theme.lineSoft}` },
-  tentSlotStack: { display: 'flex', flexDirection: 'column', gap: 4 },
-  tentCell: { minHeight: 46, borderRadius: 10, border: `1px solid ${theme.lineSoft}`, background: theme.window, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2 },
-  tentCellActive: { background: '#eef6ff', border: '1px solid rgba(10,132,255,0.28)' },
+  tentCellActive: { background: '#eef6ff', border: '1px solid rgba(59,130,246,0.38)' },
   tentLevelText: { fontSize: 10, color: theme.textSoft },
-  tentQty: { fontSize: 13, fontWeight: 700, color: theme.blue },
-  summaryList: { display: 'flex', flexDirection: 'column', gap: 8, marginTop: 10 },
-  summaryRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, borderRadius: 12, background: theme.window, border: `1px solid ${theme.lineSoft}`, padding: '10px 12px' },
+  tentQty: { fontSize: 12, fontWeight: 700, color: '#2563eb' },
+  summaryList: { display: 'flex', flexDirection: 'column', gap: 10, marginTop: 10 },
+  summaryRow: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+    borderRadius: 14,
+    background: '#f5f5f7',
+    border: `1px solid ${theme.lineSoft}`,
+    padding: '12px 14px',
+  },
   summaryLabel: { fontSize: 13, color: theme.text, minWidth: 0 },
-  summaryQty: { fontSize: 11, fontWeight: 700, color: theme.blue, background: '#eef6ff', border: '1px solid rgba(10,132,255,0.18)', borderRadius: 999, padding: '4px 8px', whiteSpace: 'nowrap' },
+  summaryQty: {
+    fontSize: 11,
+    fontWeight: 700,
+    color: '#2563eb',
+    background: '#eef6ff',
+    border: '1px solid rgba(59,130,246,0.12)',
+    borderRadius: 999,
+    padding: '4px 10px',
+    whiteSpace: 'nowrap',
+  },
 }
