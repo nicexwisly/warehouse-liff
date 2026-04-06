@@ -10,7 +10,7 @@ function parseContainerLabel(label = '') {
   if (!match) return null
   return {
     containerNo: Number(match[1]),
-    group: match[2].toUpperCase(),
+    zone: match[2].toUpperCase(),
     slot: Number(match[3]),
     level: Number(match[4]),
     label,
@@ -40,7 +40,7 @@ function buildLocationMap(items) {
 
     const con = parseContainerLabel(label)
     if (con) {
-      const key = `${con.containerNo}-${con.group}-${con.slot}`
+      const key = `${con.containerNo}-${con.zone}-${con.slot}`
       containerHighlights[key] = {
         qty: (containerHighlights[key]?.qty || 0) + qty,
         label,
@@ -61,58 +61,56 @@ function buildLocationMap(items) {
   return { containerHighlights, tentHighlights, summary }
 }
 
-function getContainerGroups(containerHighlights) {
+function getContainerNumbers(containerHighlights) {
   const numbers = [...new Set(Object.keys(containerHighlights).map(key => Number(key.split('-')[0])))]
   return numbers.sort((a, b) => a - b)
 }
 
-function MiniSlot({ number, active, qty }) {
+function ContainerCell({ number, activeData }) {
+  const active = !!activeData
   return (
-    <div style={{ ...mapStyles.miniSlot, ...(active ? mapStyles.miniSlotActive : null) }}>
-      {active && <div style={mapStyles.miniSlotBubble}>{qty}</div>}
-      <span style={{ ...mapStyles.miniSlotText, ...(active ? mapStyles.miniSlotTextActive : null) }}>{number}</span>
+    <div style={{ ...mapStyles.containerCell, ...(active ? mapStyles.containerCellActive : null) }}>
+      <div style={mapStyles.containerNumber}>{number}</div>
+      <div style={mapStyles.containerCode}>{activeData?.label || '+'}</div>
+      <div style={{ ...mapStyles.containerBottom, ...(active ? mapStyles.containerBottomActive : null) }}>
+        {active ? activeData.qty : '+'}
+      </div>
     </div>
   )
 }
 
-function MiniContainerGroup({ group, containerNo, highlights }) {
+function ContainerCard({ containerNo, highlights }) {
   const rows = [
     [4, 8],
     [3, 7],
     [2, 6],
     [1, 5],
   ]
+  const zones = ['A', 'B', 'C']
 
   return (
-    <div style={mapStyles.miniGroupCard}>
-      <div style={mapStyles.miniGroupHeader}>{group}</div>
-      <div style={mapStyles.miniGroupGrid}>
-        {rows.map(([left, right]) => {
-          const leftData = highlights[`${containerNo}-${group}-${left}`]
-          const rightData = highlights[`${containerNo}-${group}-${right}`]
-          return (
-            <div key={`${group}-${left}-${right}`} style={{ display: 'contents' }}>
-              <MiniSlot number={left} active={!!leftData} qty={leftData?.qty} />
-              <MiniSlot number={right} active={!!rightData} qty={rightData?.qty} />
+    <div style={mapStyles.sectionCard}>
+      <div style={mapStyles.sectionHeader}>
+        <div style={mapStyles.sectionTitle}>ตู้คอน {containerNo}</div>
+        <div style={mapStyles.sectionHint}>ไฮไลท์ทุกจุดที่พบ</div>
+      </div>
+
+      <div style={mapStyles.containerFrame}>
+        <div style={mapStyles.containerColumns}>
+          {zones.map(zone => (
+            <div key={`${containerNo}-${zone}`} style={mapStyles.containerColumn}>
+              <div style={mapStyles.containerZoneGrid}>
+                {rows.map(([left, right]) => (
+                  <div key={`${zone}-${left}-${right}`} style={{ display: 'contents' }}>
+                    <ContainerCell number={left} activeData={highlights[`${containerNo}-${zone}-${left}`]} />
+                    <ContainerCell number={right} activeData={highlights[`${containerNo}-${zone}-${right}`]} />
+                  </div>
+                ))}
+              </div>
+              <div style={mapStyles.zoneLabel}>{zone}</div>
             </div>
-          )
-        })}
-      </div>
-    </div>
-  )
-}
-
-function ContainerPopupSection({ containerNo, highlights }) {
-  return (
-    <div style={mapStyles.popupSectionCard}>
-      <div style={mapStyles.popupSectionHeader}>
-        <div style={mapStyles.popupSectionTitle}>Computer Cabinet</div>
-        <div style={mapStyles.popupSectionHint}>ไฮไลท์ทุกจุดที่พบ</div>
-      </div>
-      <div style={mapStyles.miniGroupsRow}>
-        {['A', 'B', 'C'].map(group => (
-          <MiniContainerGroup key={`${containerNo}-${group}`} group={group} containerNo={containerNo} highlights={highlights} />
-        ))}
+          ))}
+        </div>
       </div>
     </div>
   )
@@ -126,13 +124,14 @@ function TentSection({ highlights }) {
   if (rows.length === 0 || slots.length === 0 || levels.length === 0) return null
 
   return (
-    <div style={mapStyles.popupSectionCard}>
-      <div style={mapStyles.popupSectionHeader}>
-        <div style={mapStyles.popupSectionTitle}>Tent / Pallet</div>
-        <div style={mapStyles.popupSectionHint}>ไฮไลท์ทุกจุดที่พบ</div>
+    <div style={mapStyles.sectionCard}>
+      <div style={mapStyles.sectionHeader}>
+        <div style={mapStyles.sectionTitle}>พาเลท / เต็นท์</div>
+        <div style={mapStyles.sectionHint}>ไฮไลท์ทุกจุดที่พบ</div>
       </div>
+
       <div style={mapStyles.tentScroll}>
-        <div style={{ ...mapStyles.tentGrid, gridTemplateColumns: `38px repeat(${slots.length}, minmax(48px, 1fr))` }}>
+        <div style={{ ...mapStyles.tentGrid, gridTemplateColumns: `42px repeat(${slots.length}, minmax(52px, 1fr))` }}>
           <div />
           {slots.map(slot => <div key={`slot-${slot}`} style={mapStyles.tentColHeader}>ล็อค {slot}</div>)}
           {rows.map(row => (
@@ -161,8 +160,8 @@ function TentSection({ highlights }) {
 
 function SummarySection({ summary }) {
   return (
-    <div style={mapStyles.popupSectionCard}>
-      <div style={mapStyles.popupSectionTitle}>สรุปตำแหน่ง</div>
+    <div style={mapStyles.sectionCard}>
+      <div style={mapStyles.sectionTitle}>สรุปตำแหน่ง</div>
       <div style={mapStyles.summaryList}>
         {summary.map((item, index) => (
           <div key={`${item.label}-${index}`} style={mapStyles.summaryRow}>
@@ -177,8 +176,7 @@ function SummarySection({ summary }) {
 
 function SearchMapModal({ results, onClose }) {
   const { containerHighlights, tentHighlights, summary } = useMemo(() => buildLocationMap(results), [results])
-  const containerNos = getContainerGroups(containerHighlights)
-  const hasContainers = containerNos.length > 0
+  const containerNumbers = getContainerNumbers(containerHighlights)
   const hasTent = Object.keys(tentHighlights).length > 0
 
   return (
@@ -193,8 +191,8 @@ function SearchMapModal({ results, onClose }) {
         </div>
 
         <div style={mapStyles.modalBody}>
-          {hasContainers && containerNos.map(containerNo => (
-            <ContainerPopupSection key={`con-${containerNo}`} containerNo={containerNo} highlights={containerHighlights} />
+          {containerNumbers.map(containerNo => (
+            <ContainerCard key={`container-${containerNo}`} containerNo={containerNo} highlights={containerHighlights} />
           ))}
           {hasTent && <TentSection highlights={tentHighlights} />}
           <SummarySection summary={summary} />
@@ -220,7 +218,7 @@ export default function SearchPage({ profile }) {
       const items = await searchItems(val)
       setResults(items)
       setSearched(true)
-      setShowMapModal(items.length > 0)
+      setShowMapModal(false)
     } catch (e) {
       alert(e.message)
     } finally {
@@ -278,18 +276,19 @@ export default function SearchPage({ profile }) {
         <div style={styles.toolbar}>
           <input
             style={styles.input}
-            placeholder="Search items..."
+            placeholder='Search items...'
             value={q}
             onChange={e => setQ(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleSearch()}
             autoFocus
           />
-          <button onClick={() => setShowScanner(true)} style={styles.secondaryBtn} title="สแกน barcode">📷</button>
-          <button onClick={() => handleSearch()} style={styles.primaryBtn} disabled={loading}>{loading ? '...' : 'ค้นหา'}</button>
+          <button onClick={() => setShowScanner(true)} style={styles.secondaryBtn} title='สแกน barcode'>📷</button>
+          <button onClick={() => handleSearch()} style={styles.primaryBtn} disabled={loading}>
+            {loading ? '...' : 'ค้นหา'}
+          </button>
         </div>
 
         <div style={styles.body}>
-          <div style={styles.pathBar}>Favorites / Inventory / Search</div>
           {searched && !loading && (
             <div style={styles.countRow}>
               <p style={styles.count}>{results.length > 0 ? `พบ ${results.length} รายการ` : 'ไม่พบสินค้านี้ในระบบ'}</p>
@@ -308,7 +307,7 @@ export default function SearchPage({ profile }) {
               <div key={item.id} style={{ ...styles.row, ...(index === 0 ? styles.rowSelected : null) }}>
                 <div style={styles.nameCell}>
                   <div style={styles.itemIcon}>📦</div>
-                  <div>
+                  <div style={{ minWidth: 0 }}>
                     <p style={styles.itemName}>{item.item_name}</p>
                     <p style={styles.itemMeta}>พาเลท {item.pallet_code}</p>
                   </div>
@@ -341,7 +340,6 @@ const styles = {
   secondaryBtn: { ...theme.button, padding: '10px 12px', fontSize: 18 },
   primaryBtn: { ...theme.primaryButton, padding: '10px 16px', fontWeight: 600, fontSize: 14 },
   body: { flex: 1, overflowY: 'auto', padding: 14 },
-  pathBar: { background: theme.toolbar, border: `1px solid ${theme.lineSoft}`, borderRadius: 10, padding: '8px 12px', fontSize: 12, color: theme.textMuted, marginBottom: 12 },
   countRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 10, flexWrap: 'wrap' },
   count: { fontSize: 13, color: theme.textMuted },
   mapBtn: { ...theme.button, padding: '6px 10px', fontSize: 12, fontWeight: 600, color: theme.blue, background: theme.blueSoft },
@@ -351,8 +349,8 @@ const styles = {
   rowSelected: { background: theme.blueSoft },
   nameCell: { display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 },
   itemIcon: { width: 30, height: 30, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', background: theme.toolbar, border: `1px solid ${theme.lineSoft}` },
-  itemName: { fontSize: 14, fontWeight: 600, color: theme.text },
-  itemMeta: { fontSize: 12, color: theme.textSoft, marginTop: 2 },
+  itemName: { fontSize: 14, fontWeight: 600, color: theme.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
+  itemMeta: { fontSize: 12, color: theme.textSoft, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
   codeCell: { fontSize: 13, color: theme.textMuted },
   locationBadge: { display: 'inline-flex', background: '#f0f6ff', color: theme.blue, border: '1px solid rgba(10,132,255,0.18)', borderRadius: 999, padding: '4px 10px', fontSize: 12, fontWeight: 600 },
   qtyCell: { display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 },
@@ -404,87 +402,71 @@ const mapStyles = {
     boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
   },
   modalBody: { padding: 14, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14 },
-  popupSectionCard: {
+  sectionCard: {
     background: theme.panel,
     border: `1px solid ${theme.lineSoft}`,
     borderRadius: 22,
     padding: 14,
     boxShadow: theme.shadowSoft,
   },
-  popupSectionHeader: {
+  sectionHeader: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
     gap: 10,
     marginBottom: 12,
   },
-  popupSectionTitle: { fontSize: 13, fontWeight: 700, color: theme.text },
-  popupSectionHint: { fontSize: 11, color: theme.textSoft },
-  miniGroupsRow: {
+  sectionTitle: { fontSize: 13, fontWeight: 700, color: theme.text },
+  sectionHint: { fontSize: 11, color: theme.textSoft },
+  containerFrame: {
+    borderRadius: 20,
+    border: `1px solid ${theme.lineSoft}`,
+    background: '#f8f8fa',
+    padding: 8,
+  },
+  containerColumns: {
     display: 'grid',
     gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
     gap: 10,
   },
-  miniGroupCard: {
-    borderRadius: 18,
-    border: `1px solid ${theme.lineSoft}`,
-    background: '#f8f8fa',
-    padding: 8,
-    minWidth: 0,
-  },
-  miniGroupHeader: {
-    textAlign: 'center',
-    fontSize: 12,
-    fontWeight: 600,
-    color: theme.textSoft,
-    marginBottom: 8,
-  },
-  miniGroupGrid: {
+  containerColumn: { display: 'flex', flexDirection: 'column', minWidth: 0 },
+  containerZoneGrid: {
     display: 'grid',
     gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
     gap: 8,
   },
-  miniSlot: {
-    position: 'relative',
-    height: 50,
-    borderRadius: 12,
+  containerCell: {
+    minHeight: 76,
+    borderRadius: 16,
     border: `1px solid ${theme.lineSoft}`,
     background: theme.window,
     display: 'flex',
+    flexDirection: 'column',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
+    padding: '8px 6px 6px',
   },
-  miniSlotActive: {
-    background: '#eef6ff',
-    border: '1px solid rgba(59,130,246,0.55)',
-    boxShadow: 'inset 0 0 0 1px rgba(59,130,246,0.14)',
+  containerCellActive: {
+    background: '#f3faf4',
+    border: '1px solid rgba(34,197,94,0.28)',
   },
-  miniSlotText: {
-    fontSize: 20,
-    fontWeight: 600,
+  containerNumber: { fontSize: 20, fontWeight: 700, lineHeight: 1, color: theme.text },
+  containerCode: {
+    fontSize: 7,
+    color: theme.textSoft,
+    textAlign: 'center',
+    lineHeight: 1.15,
+    minHeight: 16,
+    wordBreak: 'break-word',
+  },
+  containerBottom: { fontSize: 18, fontWeight: 500, lineHeight: 1, color: '#c2c7d0' },
+  containerBottomActive: { color: '#16a34a', fontWeight: 700 },
+  zoneLabel: {
+    textAlign: 'center',
+    marginTop: 10,
+    fontSize: 13,
+    fontWeight: 700,
     color: theme.textMuted,
-    lineHeight: 1,
-  },
-  miniSlotTextActive: {
-    color: '#2563eb',
-    fontWeight: 700,
-  },
-  miniSlotBubble: {
-    position: 'absolute',
-    top: -8,
-    right: -6,
-    minWidth: 22,
-    height: 22,
-    padding: '0 6px',
-    borderRadius: 999,
-    background: '#3b82f6',
-    color: '#fff',
-    fontSize: 11,
-    fontWeight: 700,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    boxShadow: '0 4px 10px rgba(59,130,246,0.22)',
   },
   tentScroll: { overflowX: 'auto' },
   tentGrid: { display: 'grid', gap: 6, minWidth: 250 },
@@ -502,9 +484,9 @@ const mapStyles = {
     justifyContent: 'center',
     gap: 2,
   },
-  tentCellActive: { background: '#eef6ff', border: '1px solid rgba(59,130,246,0.38)' },
+  tentCellActive: { background: '#f3faf4', border: '1px solid rgba(34,197,94,0.28)' },
   tentLevelText: { fontSize: 10, color: theme.textSoft },
-  tentQty: { fontSize: 12, fontWeight: 700, color: '#2563eb' },
+  tentQty: { fontSize: 12, fontWeight: 700, color: '#16a34a' },
   summaryList: { display: 'flex', flexDirection: 'column', gap: 10, marginTop: 10 },
   summaryRow: {
     display: 'flex',
