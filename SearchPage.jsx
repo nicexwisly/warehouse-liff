@@ -8,8 +8,12 @@ const BASE = import.meta.env.VITE_API_URL
 function parseContainerLabel(label = '') {
   const match = label.match(/^CON(\d+)([A-Z])-?(\d{1,2})-(\d+)$/i)
   if (!match) return null
+
+  const containerNo = Number(match[1])
+  const zoneMap = { 1: 'A', 2: 'B', 3: 'C' }
+
   return {
-    group: match[2].toUpperCase(),
+    zone: zoneMap[containerNo] || null,
     slot: Number(match[3]),
     level: Number(match[4]),
     label,
@@ -38,8 +42,8 @@ function buildLocationMap(items) {
     summary.push({ label, qty })
 
     const con = parseContainerLabel(label)
-    if (con) {
-      const key = `${con.group}-${con.slot}`
+    if (con && con.zone) {
+      const key = `${con.zone}-${con.slot}`
       containerHighlights[key] = {
         qty: (containerHighlights[key]?.qty || 0) + qty,
         labels: [...(containerHighlights[key]?.labels || []), label],
@@ -63,6 +67,7 @@ function buildLocationMap(items) {
 function ContainerCell({ number, activeData }) {
   const active = !!activeData
   const codeText = activeData?.labels?.[0] || '+'
+
   return (
     <div style={{ ...mapStyles.containerCell, ...(active ? mapStyles.containerCellActive : null) }}>
       <div style={mapStyles.containerNumber}>{number}</div>
