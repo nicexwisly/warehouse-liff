@@ -9,8 +9,7 @@ function parseContainerLabel(label = '') {
   const match = label.match(/^CON(\d+)([A-Z])-?(\d{1,2})-(\d+)$/i)
   if (!match) return null
   return {
-    containerNo: Number(match[1]),
-    zone: match[2].toUpperCase(),
+    group: match[2].toUpperCase(),
     slot: Number(match[3]),
     level: Number(match[4]),
     label,
@@ -40,10 +39,10 @@ function buildLocationMap(items) {
 
     const con = parseContainerLabel(label)
     if (con) {
-      const key = `${con.containerNo}-${con.zone}-${con.slot}`
+      const key = `${con.group}-${con.slot}`
       containerHighlights[key] = {
         qty: (containerHighlights[key]?.qty || 0) + qty,
-        label,
+        labels: [...(containerHighlights[key]?.labels || []), label],
       }
       return
     }
@@ -61,17 +60,13 @@ function buildLocationMap(items) {
   return { containerHighlights, tentHighlights, summary }
 }
 
-function getContainerNumbers(containerHighlights) {
-  const numbers = [...new Set(Object.keys(containerHighlights).map(key => Number(key.split('-')[0])))]
-  return numbers.sort((a, b) => a - b)
-}
-
 function ContainerCell({ number, activeData }) {
   const active = !!activeData
+  const codeText = activeData?.labels?.[0] || '+'
   return (
     <div style={{ ...mapStyles.containerCell, ...(active ? mapStyles.containerCellActive : null) }}>
       <div style={mapStyles.containerNumber}>{number}</div>
-      <div style={mapStyles.containerCode}>{activeData?.label || '+'}</div>
+      <div style={mapStyles.containerCode}>{codeText}</div>
       <div style={{ ...mapStyles.containerBottom, ...(active ? mapStyles.containerBottomActive : null) }}>
         {active ? activeData.qty : '+'}
       </div>
@@ -79,7 +74,7 @@ function ContainerCell({ number, activeData }) {
   )
 }
 
-function ContainerCard({ containerNo, highlights }) {
+function ContainerMapSection({ highlights }) {
   const rows = [
     [4, 8],
     [3, 7],
@@ -91,19 +86,19 @@ function ContainerCard({ containerNo, highlights }) {
   return (
     <div style={mapStyles.sectionCard}>
       <div style={mapStyles.sectionHeader}>
-        <div style={mapStyles.sectionTitle}>ตู้คอน {containerNo}</div>
+        <div style={mapStyles.sectionTitle}>Computer Cabinet</div>
         <div style={mapStyles.sectionHint}>ไฮไลท์ทุกจุดที่พบ</div>
       </div>
 
       <div style={mapStyles.containerFrame}>
         <div style={mapStyles.containerColumns}>
           {zones.map(zone => (
-            <div key={`${containerNo}-${zone}`} style={mapStyles.containerColumn}>
+            <div key={zone} style={mapStyles.containerColumn}>
               <div style={mapStyles.containerZoneGrid}>
                 {rows.map(([left, right]) => (
                   <div key={`${zone}-${left}-${right}`} style={{ display: 'contents' }}>
-                    <ContainerCell number={left} activeData={highlights[`${containerNo}-${zone}-${left}`]} />
-                    <ContainerCell number={right} activeData={highlights[`${containerNo}-${zone}-${right}`]} />
+                    <ContainerCell number={left} activeData={highlights[`${zone}-${left}`]} />
+                    <ContainerCell number={right} activeData={highlights[`${zone}-${right}`]} />
                   </div>
                 ))}
               </div>
@@ -176,7 +171,7 @@ function SummarySection({ summary }) {
 
 function SearchMapModal({ results, onClose }) {
   const { containerHighlights, tentHighlights, summary } = useMemo(() => buildLocationMap(results), [results])
-  const containerNumbers = getContainerNumbers(containerHighlights)
+  const hasContainers = Object.keys(containerHighlights).length > 0
   const hasTent = Object.keys(tentHighlights).length > 0
 
   return (
@@ -191,9 +186,7 @@ function SearchMapModal({ results, onClose }) {
         </div>
 
         <div style={mapStyles.modalBody}>
-          {containerNumbers.map(containerNo => (
-            <ContainerCard key={`container-${containerNo}`} containerNo={containerNo} highlights={containerHighlights} />
-          ))}
+          {hasContainers && <ContainerMapSection highlights={containerHighlights} />}
           {hasTent && <TentSection highlights={tentHighlights} />}
           <SummarySection summary={summary} />
         </div>
