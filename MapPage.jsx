@@ -743,6 +743,41 @@ function ContainerMap({ profile }) {
         }}
         onConfirm={confirmDeductInline}
       />
+
+      <AddItemModal
+        open={addModalOpen}
+        selected={selected}
+        selectedPallet={selectedPallet}
+        form={addForm}
+        loading={addLoading}
+        error={addError}
+        onClose={() => {
+          if (addLoading) return
+          setAddModalOpen(false)
+          setAddError('')
+        }}
+        onChangeItem={selectedItem =>
+          setAddForm(f => ({
+            ...f,
+            item_code: selectedItem?.code || '',
+            item_name: selectedItem?.name || '',
+          }))
+        }
+        onClearItem={() =>
+          setAddForm(f => ({
+            ...f,
+            item_code: '',
+            item_name: '',
+          }))
+        }
+        onChangeQty={value =>
+          setAddForm(f => ({
+            ...f,
+            qty: String(value).replace(/[^0-9]/g, ''),
+          }))
+        }
+        onSubmit={handleAddSubmit}
+      />
     </>
   )
 }
