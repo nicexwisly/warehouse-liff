@@ -455,6 +455,46 @@ function AddItemModal({
   )
 }
 
+
+function ConfirmAddModal({ open, form, selected, loading, onClose, onConfirm }) {
+  if (!open) return null
+
+  const qty = Number(form?.qty || 0)
+
+  return (
+    <div style={ca.overlay} onClick={loading ? undefined : onClose}>
+      <div style={ca.card} onClick={e => e.stopPropagation()}>
+        <div style={ca.header}>
+          <div style={ca.badge}>ตรวจสอบก่อนยืนยัน</div>
+          <div style={ca.title}>ยืนยันเพิ่มสินค้าตามนี้ใช่ไหม</div>
+          <div style={ca.sub}>
+            {selected?.label ? `ตำแหน่ง ${selected.label}` : 'ตรวจสอบรายการให้ถูกต้องก่อนบันทึก'}
+          </div>
+        </div>
+
+        <div style={ca.body}>
+          <div style={ca.itemBox}>
+            <div style={ca.itemCode}>ITEM {form?.item_code}</div>
+            <div style={ca.itemName}>{form?.item_name}</div>
+          </div>
+
+          <div style={ca.qtyBox}>
+            <span style={ca.qtyLabel}>จำนวนที่จะเพิ่ม</span>
+            <span style={ca.qtyValue}>{qty} ชิ้น</span>
+          </div>
+        </div>
+
+        <div style={ca.footer}>
+          <button onClick={onClose} style={ca.cancelBtn} disabled={loading}>กลับไปแก้ไข</button>
+          <button onClick={onConfirm} style={ca.confirmBtn} disabled={loading}>
+            {loading ? 'กำลังบันทึก...' : 'ยืนยัน'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function ContainerMap({ profile }) {
   const [map, setMap] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -471,6 +511,8 @@ function ContainerMap({ profile }) {
   const [addForm, setAddForm] = useState({ item_code: '', item_name: '', qty: '1' })
   const [addLoading, setAddLoading] = useState(false)
   const [addError, setAddError] = useState('')
+  const [confirmAddOpen, setConfirmAddOpen] = useState(false)
+  const [undoLoading, setUndoLoading] = useState(false)
 
   async function loadMap() {
     setLoading(true)
@@ -482,7 +524,7 @@ function ContainerMap({ profile }) {
 
   useEffect(() => {
     if (!actionToast) return
-    const timer = setTimeout(() => setActionToast(null), 2200)
+    const timer = setTimeout(() => setActionToast(null), actionToast?.action ? 5000 : 2200)
     return () => clearTimeout(timer)
   }, [actionToast])
 
@@ -560,8 +602,60 @@ function ContainerMap({ profile }) {
 
   function openAddModal() {
     setAddError('')
+    setConfirmAddOpen(false)
     setAddForm({ item_code: '', item_name: '', qty: '1' })
     setAddModalOpen(true)
+  }
+
+  function requestAddConfirmation() {
+    if (!selectedPallet?.id) {
+      setAddError('ไม่พบพาเลทของตำแหน่งนี้')
+      return
+    }
+
+    if (!addForm.item_code || !addForm.item_name) {
+      setAddError('กรุณาเลือกสินค้า')
+      return
+    }
+
+    const qty = Number(addForm.qty)
+    if (!addForm.qty || Number.isNaN(qty) || qty <= 0) {
+      setAddError('กรุณากรอกจำนวนเป็นตัวเลขที่ถูกต้อง')
+      return
+    }
+
+    setAddError('')
+    setConfirmAddOpen(true)
+  }
+
+  async function handleUndoAdd(action) {
+    if (!action?.itemId || !action?.qty) return
+
+    setUndoLoading(true)
+    try {
+      const res = await deductItem(action.itemId, {
+        qty: action.qty,
+        actor_name: profile?.displayName,
+        actor_user_id: profile?.userId,
+      })
+
+      setActionToast({
+        type: 'success',
+        text: res?.message || 'ยกเลิกการเพิ่มสินค้าสำเร็จ',
+      })
+
+      await loadMap()
+      if (selected?.label) {
+        await handleCellClick(selected)
+      }
+    } catch (e) {
+      setActionToast({
+        type: 'error',
+        text: e.message || 'ไม่สามารถย้อนกลับรายการได้',
+      })
+    } finally {
+      setUndoLoading(false)
+    }
   }
 
   async function handleAddSubmit() {
@@ -593,11 +687,17 @@ function ContainerMap({ profile }) {
         actor_user_id: profile?.userId,
       })
 
+      setConfirmAddOpen(false)
       setAddModalOpen(false)
       setAddForm({ item_code: '', item_name: '', qty: '1' })
       setActionToast({
         type: 'success',
         text: res?.message || `เพิ่มสินค้าในพาเลทหรือตู้คอน ${selected.label} เรียบร้อย`,
+        action: {
+          label: undoLoading ? 'กำลังย้อนกลับ...' : 'Undo',
+          itemId: res?.id,
+          qty,
+        },
       })
 
       await loadMap()
@@ -676,7 +776,16 @@ function ContainerMap({ profile }) {
       {actionToast && (
         <div style={cp.toastWrap}>
           <div style={{ ...cp.toast, ...(actionToast.type === 'success' ? cp.toastSuccess : cp.toastError) }}>
-            {actionToast.text}
+            <span style={{ flex: 1 }}>{actionToast.text}</span>
+            {actionToast.action?.itemId && actionToast.type === 'success' && (
+              <button
+                onClick={() => handleUndoAdd(actionToast.action)}
+                style={cp.toastActionBtn}
+                disabled={undoLoading}
+              >
+                {undoLoading ? 'กำลังย้อนกลับ...' : actionToast.action.label || 'Undo'}
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -724,6 +833,7 @@ function ContainerMap({ profile }) {
           setDeductModalItem(null)
           setDeductError('')
           setAddModalOpen(false)
+          setConfirmAddOpen(false)
           setAddError('')
         }}
         onDeduct={handleDeductInline}
@@ -739,9 +849,22 @@ function ContainerMap({ profile }) {
           setDeductModalItem(null)
           setDeductError('')
           setAddModalOpen(false)
+          setConfirmAddOpen(false)
           setAddError('')
         }}
         onConfirm={confirmDeductInline}
+      />
+
+      <ConfirmAddModal
+        open={confirmAddOpen}
+        form={addForm}
+        selected={selected}
+        loading={addLoading}
+        onClose={() => {
+          if (addLoading) return
+          setConfirmAddOpen(false)
+        }}
+        onConfirm={handleAddSubmit}
       />
 
       <AddItemModal
@@ -754,6 +877,7 @@ function ContainerMap({ profile }) {
         onClose={() => {
           if (addLoading) return
           setAddModalOpen(false)
+          setConfirmAddOpen(false)
           setAddError('')
         }}
         onChangeItem={selectedItem =>
@@ -776,10 +900,83 @@ function ContainerMap({ profile }) {
             qty: String(value).replace(/[^0-9]/g, ''),
           }))
         }
-        onSubmit={handleAddSubmit}
+        onSubmit={requestAddConfirmation}
       />
     </>
   )
+}
+
+
+const ca = {
+  overlay: {
+    position: 'fixed',
+    inset: 0,
+    background: 'rgba(15, 23, 42, 0.3)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 18,
+    zIndex: 320,
+  },
+  card: {
+    width: '100%',
+    maxWidth: 320,
+    background: '#fff',
+    borderRadius: 22,
+    border: '1px solid #e5e7eb',
+    boxShadow: '0 20px 48px rgba(15, 23, 42, 0.22)',
+    overflow: 'hidden',
+  },
+  header: { padding: '16px 16px 10px', borderBottom: '1px solid #f1f5f9' },
+  badge: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    padding: '5px 10px',
+    borderRadius: 999,
+    background: '#eff6ff',
+    color: '#1d4ed8',
+    border: '1px solid #bfdbfe',
+    fontSize: 11,
+    fontWeight: 700,
+  },
+  title: { marginTop: 8, fontSize: 16, fontWeight: 800, color: '#0f172a', lineHeight: 1.25 },
+  sub: { marginTop: 4, fontSize: 12, color: '#64748b', lineHeight: 1.4 },
+  body: { padding: 16, display: 'flex', flexDirection: 'column', gap: 12 },
+  itemBox: { borderRadius: 16, background: '#f8fafc', border: '1px solid #e2e8f0', padding: 12 },
+  itemCode: { fontSize: 11, fontWeight: 700, color: '#94a3b8', letterSpacing: '0.04em' },
+  itemName: { marginTop: 4, fontSize: 14, fontWeight: 700, color: '#0f172a', lineHeight: 1.35 },
+  qtyBox: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderRadius: 16,
+    border: '1px solid #e2e8f0',
+    background: '#fff',
+    padding: '12px 14px',
+  },
+  qtyLabel: { fontSize: 13, color: '#475569', fontWeight: 600 },
+  qtyValue: { fontSize: 15, color: '#0f172a', fontWeight: 800 },
+  footer: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, padding: 16, borderTop: '1px solid #f1f5f9' },
+  cancelBtn: {
+    borderRadius: 14,
+    border: '1px solid #e2e8f0',
+    background: '#fff',
+    color: '#334155',
+    padding: '12px 14px',
+    fontSize: 13,
+    fontWeight: 700,
+    cursor: 'pointer',
+  },
+  confirmBtn: {
+    borderRadius: 14,
+    border: 'none',
+    background: '#0f172a',
+    color: '#fff',
+    padding: '12px 14px',
+    fontSize: 13,
+    fontWeight: 800,
+    cursor: 'pointer',
+  },
 }
 
 const cs = {
