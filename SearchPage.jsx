@@ -200,6 +200,62 @@ function SearchMapModal({ results, onClose }) {
   )
 }
 
+function SearchSummary({ results, query, onOpenMap }) {
+  const totalQty = results.reduce((sum, item) => sum + (Number(item.qty) || 0), 0)
+  const uniqueLocations = new Set(results.map(item => item.location_label).filter(Boolean)).size
+
+  return (
+    <>
+      <div style={styles.resultsHeader}>
+        <div>
+          <h2 style={styles.resultsTitle}>ผลการค้นหา</h2>
+          <p style={styles.resultsSub}>{query || 'รายการสินค้า'}</p>
+        </div>
+        <button onClick={onOpenMap} style={styles.mapBtnTop}>ดูแผนที่</button>
+      </div>
+
+      <div style={styles.summaryGrid}>
+        <div style={styles.summaryCard}>
+          <div style={styles.summaryLabel}>จำนวนรายการ</div>
+          <div style={styles.summaryValue}>{uniqueLocations} location</div>
+        </div>
+        <div style={styles.summaryCard}>
+          <div style={styles.summaryLabel}>จำนวนรวม</div>
+          <div style={styles.summaryValue}>{totalQty} ชิ้น</div>
+        </div>
+      </div>
+    </>
+  )
+}
+
+function ResultCard({ item, onDeduct }) {
+  return (
+    <div style={styles.resultCard}>
+      <div style={styles.resultCardTop}>
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <div style={styles.itemCode}>ITEM {item.item_code}</div>
+          <div style={styles.itemName}>{item.item_name}</div>
+          <div style={styles.itemMeta}>พาเลท {item.pallet_code}</div>
+        </div>
+
+        <div style={styles.qtyWrap}>
+          <div style={styles.qtyValue}>{item.qty}</div>
+          <div style={styles.qtyUnit}>ชิ้น</div>
+        </div>
+      </div>
+
+      <div style={styles.resultCardBottom}>
+        <div style={styles.resultCardInfo}>
+          <span style={styles.locationBadge}>{item.location_label}</span>
+          <span style={styles.stockText}>คงเหลือ {item.qty} ชิ้น</span>
+        </div>
+
+        <button onClick={() => onDeduct(item)} style={styles.pickBtn}>หยิบออก</button>
+      </div>
+    </div>
+  )
+}
+
 export default function SearchPage({ profile }) {
   const [q, setQ] = useState('')
   const [results, setResults] = useState([])
@@ -287,38 +343,20 @@ export default function SearchPage({ profile }) {
         </div>
 
         <div style={styles.body}>
-          {searched && !loading && (
-            <div style={styles.countRow}>
-              <p style={styles.count}>{results.length > 0 ? `พบ ${results.length} รายการ` : 'ไม่พบสินค้านี้ในระบบ'}</p>
-              {results.length > 0 && <button onClick={() => setShowMapModal(true)} style={styles.mapBtn}>ดูแผนที่</button>}
-            </div>
+          {searched && !loading && results.length > 0 && (
+            <SearchSummary results={results} query={q.trim()} onOpenMap={() => setShowMapModal(true)} />
           )}
 
-          <div style={styles.listShell}>
-            <div style={styles.listHeader}>
-              <div>Name</div>
-              <div>Code</div>
-              <div>Location</div>
-              <div style={{ textAlign: 'right' }}>Qty</div>
+          {searched && !loading && results.length === 0 ? (
+            <div style={styles.emptyCard}>
+              <div style={styles.emptyTitle}>ไม่พบสินค้านี้ในระบบ</div>
+              <div style={styles.emptyText}>ลองค้นหาด้วยชื่อสินค้า รหัสสินค้า หรือ barcode อื่น</div>
             </div>
-            {results.map((item, index) => (
-              <div key={item.id} style={{ ...styles.row, ...(index === 0 ? styles.rowSelected : null) }}>
-                <div style={styles.nameCell}>
-                  <div style={styles.itemIcon}>📦</div>
-                  <div style={{ minWidth: 0 }}>
-                    <p style={styles.itemName}>{item.item_name}</p>
-                    <p style={styles.itemMeta}>พาเลท {item.pallet_code}</p>
-                  </div>
-                </div>
-                <div style={styles.codeCell}>{item.item_code}</div>
-                <div>
-                  <div style={styles.locationBadge}>{item.location_label}</div>
-                </div>
-                <div style={styles.qtyCell}>
-                  <div style={styles.qty}>{item.qty}</div>
-                  <button onClick={() => handleDeduct(item)} style={styles.rowAction}>หยิบออก</button>
-                </div>
-              </div>
+          ) : null}
+
+          <div style={styles.resultsList}>
+            {results.map(item => (
+              <ResultCard key={item.id} item={item} onDeduct={handleDeduct} />
             ))}
           </div>
         </div>
@@ -328,32 +366,201 @@ export default function SearchPage({ profile }) {
 }
 
 const styles = {
-  page: { display: 'flex', flexDirection: 'column', height: '100%' },
-  header: { background: theme.toolbar, borderBottom: `1px solid ${theme.line}`, padding: '14px 16px 12px' },
+  page: {
+    display: 'flex',
+    flexDirection: 'column',
+    height: '100%',
+    background: '#f3f4f6',
+  },
+  header: {
+    background: theme.toolbar,
+    borderBottom: `1px solid ${theme.line}`,
+    padding: '14px 16px 12px',
+  },
   greeting: { fontSize: 12, color: theme.textSoft, marginBottom: 4 },
   title: { fontSize: 24, fontWeight: 700, color: theme.text, marginBottom: 2 },
   sub: { fontSize: 13, color: theme.textMuted },
-  toolbar: { display: 'flex', gap: 8, padding: 14, background: theme.window, borderBottom: `1px solid ${theme.lineSoft}` },
+  toolbar: {
+    display: 'flex',
+    gap: 8,
+    padding: 14,
+    background: theme.window,
+    borderBottom: `1px solid ${theme.lineSoft}`,
+  },
   input: { ...theme.input, flex: 1 },
   secondaryBtn: { ...theme.button, padding: '10px 12px', fontSize: 18 },
   primaryBtn: { ...theme.primaryButton, padding: '10px 16px', fontWeight: 600, fontSize: 14 },
   body: { flex: 1, overflowY: 'auto', padding: 14 },
-  countRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 10, flexWrap: 'wrap' },
-  count: { fontSize: 13, color: theme.textMuted },
-  mapBtn: { ...theme.button, padding: '6px 10px', fontSize: 12, fontWeight: 600, color: theme.blue, background: theme.blueSoft },
-  listShell: { background: theme.panel, borderRadius: 14, border: `1px solid ${theme.line}`, overflow: 'hidden', boxShadow: theme.shadowSoft },
-  listHeader: { display: 'grid', gridTemplateColumns: '1.8fr 1fr 1fr 0.8fr', padding: '10px 14px', fontSize: 12, fontWeight: 600, color: theme.textSoft, background: theme.toolbarStrong, borderBottom: `1px solid ${theme.line}` },
-  row: { display: 'grid', gridTemplateColumns: '1.8fr 1fr 1fr 0.8fr', padding: '12px 14px', alignItems: 'center', borderBottom: `1px solid ${theme.lineSoft}` },
-  rowSelected: { background: theme.blueSoft },
-  nameCell: { display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 },
-  itemIcon: { width: 30, height: 30, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', background: theme.toolbar, border: `1px solid ${theme.lineSoft}` },
-  itemName: { fontSize: 14, fontWeight: 600, color: theme.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
-  itemMeta: { fontSize: 12, color: theme.textSoft, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
-  codeCell: { fontSize: 13, color: theme.textMuted },
-  locationBadge: { display: 'inline-flex', background: '#f0f6ff', color: theme.blue, border: '1px solid rgba(10,132,255,0.18)', borderRadius: 999, padding: '4px 10px', fontSize: 12, fontWeight: 600 },
-  qtyCell: { display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 },
-  qty: { fontSize: 20, fontWeight: 700, color: theme.text },
-  rowAction: { ...theme.button, padding: '6px 10px', fontSize: 12, color: theme.red, background: theme.redSoft },
+  resultsHeader: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginBottom: 12,
+  },
+  resultsTitle: {
+    fontSize: 22,
+    fontWeight: 800,
+    color: '#0f172a',
+    lineHeight: 1.1,
+  },
+  resultsSub: {
+    marginTop: 4,
+    fontSize: 12,
+    color: '#64748b',
+  },
+  mapBtnTop: {
+    border: 'none',
+    borderRadius: 12,
+    background: '#0f172a',
+    color: '#fff',
+    padding: '10px 14px',
+    fontSize: 13,
+    fontWeight: 700,
+    boxShadow: '0 4px 12px rgba(15,23,42,0.14)',
+    cursor: 'pointer',
+    whiteSpace: 'nowrap',
+  },
+  summaryGrid: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: 10,
+    marginBottom: 14,
+  },
+  summaryCard: {
+    background: '#fff',
+    border: '1px solid #dbe2ea',
+    borderRadius: 18,
+    padding: '14px 14px 12px',
+    boxShadow: '0 2px 8px rgba(15,23,42,0.04)',
+  },
+  summaryLabel: { fontSize: 12, color: '#94a3b8' },
+  summaryValue: {
+    marginTop: 6,
+    fontSize: 22,
+    fontWeight: 800,
+    color: '#0f172a',
+    lineHeight: 1,
+  },
+  resultsList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 12,
+  },
+  resultCard: {
+    background: '#fff',
+    border: '1px solid #dbe2ea',
+    borderRadius: 24,
+    padding: 16,
+    boxShadow: '0 2px 12px rgba(15,23,42,0.05)',
+  },
+  resultCardTop: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  itemCode: {
+    fontSize: 11,
+    fontWeight: 700,
+    color: '#94a3b8',
+    letterSpacing: '0.04em',
+  },
+  itemName: {
+    marginTop: 4,
+    fontSize: 15,
+    fontWeight: 700,
+    color: '#0f172a',
+    lineHeight: 1.35,
+    wordBreak: 'break-word',
+  },
+  itemMeta: {
+    marginTop: 4,
+    fontSize: 12,
+    color: '#94a3b8',
+  },
+  qtyWrap: {
+    minWidth: 68,
+    padding: '10px 10px 8px',
+    borderRadius: 18,
+    background: '#f8fafc',
+    border: '1px solid #e2e8f0',
+    textAlign: 'center',
+  },
+  qtyValue: {
+    fontSize: 24,
+    fontWeight: 800,
+    color: '#0f172a',
+    lineHeight: 1,
+  },
+  qtyUnit: {
+    marginTop: 4,
+    fontSize: 11,
+    color: '#94a3b8',
+    fontWeight: 600,
+  },
+  resultCardBottom: {
+    marginTop: 14,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  resultCardInfo: {
+    minWidth: 0,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 8,
+    alignItems: 'flex-start',
+  },
+  locationBadge: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    background: '#edf6ff',
+    color: '#2563eb',
+    border: '1px solid rgba(37,99,235,0.14)',
+    borderRadius: 999,
+    padding: '6px 12px',
+    fontSize: 12,
+    fontWeight: 700,
+    maxWidth: '100%',
+  },
+  stockText: {
+    fontSize: 13,
+    color: '#64748b',
+    fontWeight: 600,
+  },
+  pickBtn: {
+    border: 'none',
+    borderRadius: 16,
+    background: '#ef2f2f',
+    color: '#fff',
+    padding: '12px 16px',
+    fontSize: 14,
+    fontWeight: 800,
+    boxShadow: '0 6px 12px rgba(239,47,47,0.16)',
+    cursor: 'pointer',
+    flexShrink: 0,
+  },
+  emptyCard: {
+    background: '#fff',
+    border: '1px solid #dbe2ea',
+    borderRadius: 22,
+    padding: '24px 18px',
+    textAlign: 'center',
+    boxShadow: '0 2px 12px rgba(15,23,42,0.04)',
+  },
+  emptyTitle: {
+    fontSize: 16,
+    fontWeight: 800,
+    color: '#0f172a',
+  },
+  emptyText: {
+    marginTop: 6,
+    fontSize: 13,
+    color: '#94a3b8',
+    lineHeight: 1.5,
+  },
 }
 
 const mapStyles = {
