@@ -231,27 +231,82 @@ const ts = {
 }
 
 // ============================================================
-// Container Map
+// Container Map — inline expand with real items
 // ============================================================
 function ContainerMap({ profile }) {
   const [map, setMap] = useState(null)
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState(null)
+  const [detailLoading, setDetailLoading] = useState(false)
+  const [detailError, setDetailError] = useState(null)
+  const [detailItems, setDetailItems] = useState([])
+  const [selectedPallet, setSelectedPallet] = useState(null)
 
   async function loadMap() {
     setLoading(true)
-    try {
-      setMap(await fetch(`${BASE}/locations/map?zone=container`).then(r => r.json()))
-    } catch {}
+    try { setMap(await fetch(`${BASE}/locations/map?zone=container`).then(r => r.json())) } catch {}
     setLoading(false)
   }
 
   useEffect(() => { loadMap() }, [])
 
-  if (loading) return <p style={{ padding: 24, textAlign: 'center' }}>กำลังโหลด...</p>
+  async function handleCellClick(data) {
+    setSelected(data)
+    setDetailLoading(true)
+    setDetailError(null)
+    setDetailItems([])
+    setSelectedPallet(null)
+
+    try {
+      const [locsRes, palsRes] = await Promise.all([
+        fetch(`${BASE}/locations`).then(r => r.json()),
+        fetch(`${BASE}/pallets`).then(r => r.json()),
+      ])
+      const loc = locsRes.find(l => l.label === data.label)
+      const pallet = palsRes.find(p => p.location_id === loc?.id)
+
+      if (!pallet) {
+        setDetailLoading(false)
+        setDetailError('ไม่พบพาเลทในตำแหน่งนี้')
+        return
+      }
+
+      const detail = await getPalletDetail(pallet.id)
+      setSelectedPallet(pallet)
+      setDetailItems(detail.items || [])
+    } catch (e) {
+      setDetailError(e.message)
+    } finally {
+      setDetailLoading(false)
+    }
+  }
+
+  async function handleDeductInline(item) {
+    const input = window.prompt(`หยิบ "${item.item_name}" ออกกี่ชิ้น? (มี ${item.qty})`)
+    if (!input) return
+    const qty = Number(input)
+    if (isNaN(qty) || qty <= 0) return
+
+    try {
+      await deductItem(item.id, {
+        qty,
+        actor_name: profile?.displayName,
+        actor_user_id: profile?.userId,
+      })
+
+      await loadMap()
+
+      if (selected?.label) {
+        await handleCellClick(selected)
+      }
+    } catch (e) {
+      window.alert(e.message)
+    }
+  }
+
+  if (loading) return <p style={{ padding: 24, textAlign: 'center', color: '#888' }}>กำลังโหลด...</p>
   if (!map) return null
 
-  // ===== Transform data =====
   const conData = {}
   for (const [rowKey, slots] of Object.entries(map)) {
     const m = rowKey.match(/^CON(\d+)([A-Z]+)$/)
@@ -263,103 +318,141 @@ function ContainerMap({ profile }) {
   }
 
   const containerNos = Object.keys(conData).map(Number).sort()
-
-  const layout = [
-    { left: 4, right: 8 },
-    { left: 3, right: 7 },
-    { left: 2, right: 6 },
-    { left: 1, right: 5 },
+  const groupLabels = ['A', 'B', 'C', 'D', 'E', 'F']
+  const rowPairs = [
+    { leftSlot: 4, rightSlot: 4, leftNumber: 4, rightNumber: 8 },
+    { leftSlot: 3, rightSlot: 3, leftNumber: 3, rightNumber: 7 },
+    { leftSlot: 2, rightSlot: 2, leftNumber: 2, rightNumber: 6 },
+    { leftSlot: 1, rightSlot: 1, leftNumber: 1, rightNumber: 5 },
   ]
 
-  function getCell(containerNo, row, slot) {
-    return conData[containerNo]?.[row]?.[String(slot)]?.['1'] || null
+  function getCellData(containerNo, rowLetter, slot) {
+    return conData[containerNo]?.[rowLetter]?.[String(slot)]?.['1'] || null
   }
 
-  function renderCell(data, number) {
-    const active = selected?.label === data?.label
-    const hasItems = data?.item_count > 0
+  function renderCell(data, fallbackNumber) {
+    if (!data) {
+      return (
+        <div style={{ ...cs.cell, ...cs.emptyCell }}>
+          <span style={cs.number}>{fallbackNumber}</span>
+          <span style={cs.labelText}>-</span>
+          <span style={cs.plus}>+</span>
+        </div>
+      )
+    }
+
+    const hasItems = data.item_count > 0
+    const active = selected?.label === data.label
 
     return (
       <div
-        onClick={() => data && setSelected(data)}
+        onClick={() => handleCellClick(data)}
         style={{
-          borderRadius: 12,
-          padding: 6,
-          minHeight: 70,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          cursor: data ? 'pointer' : 'default',
-          background: active ? '#e6f4ff' : hasItems ? '#eef8f0' : '#fff',
+          ...cs.cell,
+          background: active ? '#e6f4ff' : hasItems ? '#eef8f0' : '#fafafa',
           border: active
             ? '2px solid #1677ff'
             : hasItems
               ? '1.5px solid #b7e4c3'
-              : '1px solid #eee',
+              : '1.5px solid #e2e8f0',
         }}
       >
-        <div style={{ fontWeight: 700 }}>{number}</div>
-        <div style={{ fontSize: 8, color: '#999' }}>{data?.label || '-'}</div>
-        <div style={{ marginTop: 4 }}>
-          {hasItems ? <span style={{ color: '#16a34a', fontWeight: 700 }}>{data.item_count}</span> : '+'}
-        </div>
+        <span style={cs.number}>{fallbackNumber}</span>
+        <span style={cs.labelText}>{data.label}</span>
+        {hasItems ? <span style={cs.count}>{data.item_count}</span> : <span style={cs.plus}>+</span>}
       </div>
     )
   }
 
   return (
-    <div style={{
-      height: '100%',
-      overflow: 'hidden',
-      display: 'flex',
-      flexDirection: 'column',
-      padding: 8
-    }}>
-      {/* GRID */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(3, 1fr)',
-        gap: 6
-      }}>
-        {containerNos.map((conNo, idx) => (
-          <div key={conNo} style={{ background: '#f8f8f8', borderRadius: 12, padding: 6 }}>
-            {layout.map((row, i) => (
-              <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 6 }}>
-                {renderCell(getCell(conNo, 'A', row.left), row.left)}
-                {renderCell(getCell(conNo, 'B', row.right), row.right)}
+    <div style={cs.page}>
+      <div style={cs.topArea}>
+        <div style={cs.wrapper}>
+          <div style={cs.headerRow}>
+            <p style={cs.sectionTitle}>Container ST129</p>
+            <p style={cs.sectionHint}>แตะช่องเพื่อดูรายการสินค้าแบบ inline</p>
+          </div>
+
+          <div style={cs.groupsGrid}>
+            {containerNos.map((containerNo, index) => (
+              <div key={containerNo} style={cs.groupCard}>
+                <div style={cs.groupSlots}>
+                  {rowPairs.map(pair => (
+                    <div key={`row-${containerNo}-${pair.leftNumber}-${pair.rightNumber}`} style={cs.rowPair}>
+                      <div style={cs.slotWrap}>
+                        {renderCell(getCellData(containerNo, 'A', pair.leftSlot), pair.leftNumber)}
+                      </div>
+                      <div style={cs.slotWrap}>
+                        {renderCell(getCellData(containerNo, 'B', pair.rightSlot), pair.rightNumber)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div style={cs.groupLabel}>{groupLabels[index] || String(containerNo)}</div>
               </div>
             ))}
-            <div style={{ textAlign: 'center', fontWeight: 700 }}>{['A','B','C'][idx]}</div>
           </div>
-        ))}
+        </div>
       </div>
 
-      {/* INLINE DETAIL */}
-      {selected && (
-        <div style={{
-          marginTop: 8,
-          background: '#fff',
-          borderRadius: 12,
-          padding: 10,
-          border: '1px solid #eee'
-        }}>
-          <div style={{ fontWeight: 700 }}>{selected.label}</div>
-
-          {selected.item_count === 0 ? (
-            <div style={{ fontSize: 12, color: '#999' }}>ไม่มีสินค้า</div>
-          ) : (
-            <div style={{ fontSize: 12, color: '#333' }}>
-              มีสินค้า {selected.item_count} รายการ
+      <div style={cs.detailBox}>
+        {!selected ? (
+          <div style={cs.placeholderBox}>
+            <p style={cs.placeholderTitle}>เลือกช่องจากตู้คอน</p>
+            <p style={cs.placeholderSub}>แตะช่องที่ต้องการเพื่อดูรายการสินค้าจริง</p>
+          </div>
+        ) : (
+          <>
+            <div style={cs.detailHeader}>
+              <div style={{ minWidth: 0 }}>
+                <div style={cs.detailTitle}>{selected.label}</div>
+                <div style={cs.detailSub}>{selectedPallet ? `พาเลท ${selectedPallet.pallet_code}` : 'กำลังตรวจสอบพาเลท...'}</div>
+              </div>
+              <button style={cs.inlineAddBtn} disabled>
+                + เพิ่มสินค้า
+              </button>
             </div>
-          )}
-        </div>
-      )}
+
+            {detailLoading ? (
+              <div style={cs.placeholderBox}>
+                <p style={cs.placeholderSub}>กำลังโหลดรายการ...</p>
+              </div>
+            ) : detailError ? (
+              <div style={cs.placeholderBox}>
+                <p style={{ ...cs.placeholderSub, color: '#e53e3e' }}>{detailError}</p>
+              </div>
+            ) : detailItems.length === 0 ? (
+              <div style={cs.placeholderBox}>
+                <p style={cs.placeholderTitle}>ยังไม่มีสินค้า</p>
+                <p style={cs.placeholderSub}>ช่องนี้ยังไม่มีรายการสินค้าในระบบ</p>
+              </div>
+            ) : (
+              <div style={cs.inlineList}>
+                {detailItems.map((item, i) => (
+                  <div key={item.id} style={{ ...cs.inlineRow, borderTop: i > 0 ? '1px solid #f1f1f3' : 'none' }}>
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <div style={cs.inlineItemName}>{item.item_name}</div>
+                      <div style={cs.inlineItemCode}>{item.item_code}</div>
+                    </div>
+
+                    <div style={cs.inlineActions}>
+                      <span style={cs.inlineQty}>{item.qty}</span>
+                      <button onClick={() => handleDeductInline(item)} style={cs.inlineDeductBtn}>ลบ</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+      </div>
     </div>
   )
 }
 
 const cs = {
+  page: { height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden', padding: 8, boxSizing: 'border-box', gap: 8 },
+  topArea: { flex: '0 0 auto' },
   wrapper: { background: '#fff', borderRadius: 18, padding: 10, border: '1px solid #ececec' },
   headerRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, marginBottom: 10 },
   sectionTitle: { fontSize: 12, fontWeight: 700, color: '#1a1a1a', lineHeight: 1.2 },
@@ -370,12 +463,31 @@ const cs = {
   rowPair: { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 6 },
   slotWrap: { minWidth: 0 },
   groupLabel: { marginTop: 8, textAlign: 'center', fontSize: 13, fontWeight: 700, color: '#666', letterSpacing: '0.28em', paddingLeft: '0.28em' },
+
   cell: { borderRadius: 14, padding: '7px 3px 6px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', minHeight: 88, cursor: 'pointer', minWidth: 0 },
   emptyCell: { background: '#fafafa', border: '1.5px dashed #e4e4e7' },
   number: { fontSize: 13, fontWeight: 800, color: '#1a1a1a', lineHeight: 1 },
   labelText: { fontSize: 6.5, color: '#8f8f97', lineHeight: 1.15, marginTop: 4, textAlign: 'center', wordBreak: 'break-word' },
   count: { fontSize: 15, fontWeight: 700, color: '#16a34a', lineHeight: 1, marginTop: 6 },
   plus: { fontSize: 14, color: '#c3c3c8', lineHeight: 1, marginTop: 6 },
+
+  detailBox: { flex: 1, minHeight: 0, background: '#fff', borderRadius: 18, border: '1px solid #ececec', padding: 10, display: 'flex', flexDirection: 'column', overflow: 'hidden' },
+  detailHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, paddingBottom: 8, borderBottom: '1px solid #f1f1f3' },
+  detailTitle: { fontSize: 16, fontWeight: 700, color: '#1a1a1a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
+  detailSub: { fontSize: 12, color: '#8d8d95', marginTop: 2 },
+  inlineAddBtn: { padding: '8px 12px', background: '#edf6ff', color: '#1677ff', border: '1px solid #bfdbfe', borderRadius: 10, fontSize: 12, fontWeight: 700, cursor: 'not-allowed', opacity: 0.75, flexShrink: 0 },
+
+  placeholderBox: { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4, padding: 12, textAlign: 'center' },
+  placeholderTitle: { fontSize: 14, fontWeight: 700, color: '#444' },
+  placeholderSub: { fontSize: 12, color: '#999' },
+
+  inlineList: { flex: 1, minHeight: 0, overflowY: 'auto' },
+  inlineRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '10px 2px' },
+  inlineItemName: { fontSize: 13, fontWeight: 600, color: '#1a1a1a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
+  inlineItemCode: { fontSize: 11, color: '#8d8d95', marginTop: 3 },
+  inlineActions: { display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 },
+  inlineQty: { minWidth: 26, textAlign: 'center', fontSize: 15, fontWeight: 700, color: '#111' },
+  inlineDeductBtn: { padding: '6px 10px', background: '#fff5f5', color: '#e53e3e', border: '1px solid #fecaca', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer' },
 }
 
 // ============================================================
@@ -386,7 +498,6 @@ export default function MapPage({ profile }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      {/* Header + zone toggle */}
       <div style={{ background: '#fff', padding: '12px 16px 0', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
         <h1 style={{ fontSize: 20, fontWeight: 700, color: '#1a1a1a', marginBottom: 10 }}>แผนที่</h1>
         <div style={{ display: 'flex', gap: 0, borderBottom: '2px solid #f0f0f0' }}>
@@ -406,7 +517,6 @@ export default function MapPage({ profile }) {
         </div>
       </div>
 
-      {/* Content */}
       <div style={{ flex: 1, overflowY: 'auto' }}>
         {activeZone === 'tent'
           ? <TentMap profile={profile} />
