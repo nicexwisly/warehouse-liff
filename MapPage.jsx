@@ -1,12 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { getPalletDetail, addItem, deductItem } from './api'
 import ItemSearchInput from './ItemSearchInput'
 
 const BASE = import.meta.env.VITE_API_URL
 
-// ============================================================
-// Shared: Modal เพิ่ม/ลบสินค้า (ใช้ร่วมกันทั้ง Tent และ Container)
-// ============================================================
 function PalletModal({ modal, profile, onClose, onRefresh }) {
   const [view, setView] = useState('list')
   const [form, setForm] = useState({ item_code: '', item_name: '', qty: 1 })
@@ -17,7 +14,14 @@ function PalletModal({ modal, profile, onClose, onRefresh }) {
     if (!form.item_code || !form.item_name) return setActionMsg({ type: 'error', text: 'กรุณาเลือกสินค้า' })
     setActionLoading(true)
     try {
-      await addItem({ pallet_id: modal.pallet.id, item_code: form.item_code, item_name: form.item_name, qty: Number(form.qty), actor_name: profile?.displayName, actor_user_id: profile?.userId })
+      await addItem({
+        pallet_id: modal.pallet.id,
+        item_code: form.item_code,
+        item_name: form.item_name,
+        qty: Number(form.qty),
+        actor_name: profile?.displayName,
+        actor_user_id: profile?.userId
+      })
       setActionMsg({ type: 'success', text: `เพิ่ม "${form.item_name}" แล้ว` })
       setForm({ item_code: '', item_name: '', qty: 1 })
       const detail = await getPalletDetail(modal.pallet.id)
@@ -137,18 +141,10 @@ const ms = {
   deductBtn: { padding: '5px 10px', background: '#fff5f5', color: '#e53e3e', border: '1px solid #fecaca', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer' },
   addForm: { padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 12, overflowY: 'auto' },
   input: { padding: '10px 12px', borderRadius: 8, border: '1.5px solid #e2e8f0', fontSize: 14, width: '100%', outline: 'none', boxSizing: 'border-box' },
-  dropdown: { position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, boxShadow: '0 4px 12px rgba(0,0,0,0.1)', zIndex: 50, maxHeight: 200, overflowY: 'auto' },
-  dropItem: { padding: '9px 12px', borderBottom: '1px solid #f5f5f5', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 2 },
-  dropCode: { fontSize: 11, color: '#888', fontWeight: 600 },
-  dropName: { fontSize: 13, color: '#1a1a1a' },
-  selectedBox: { background: '#e6faf0', padding: '10px 12px', borderRadius: 8 },
   qtyBtn: { width: 38, height: 38, borderRadius: 8, border: '1.5px solid #e2e8f0', background: '#fff', fontSize: 20, cursor: 'pointer', flexShrink: 0 },
   confirmAddBtn: { padding: '12px', background: '#06c755', color: '#fff', border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 15, cursor: 'pointer' },
 }
 
-// ============================================================
-// Tent Map
-// ============================================================
 function TentMap({ profile }) {
   const [map, setMap] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -230,9 +226,6 @@ const ts = {
   plus: { fontSize: 16, color: '#ccc' },
 }
 
-// ============================================================
-// Container Map — inline expand with real items
-// ============================================================
 function ContainerMap({ profile }) {
   const [map, setMap] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -364,6 +357,9 @@ function ContainerMap({ profile }) {
     )
   }
 
+  const compactItems = detailItems.slice(0, 3)
+  const hiddenCount = Math.max(0, detailItems.length - compactItems.length)
+
   return (
     <div style={cs.page}>
       <div style={cs.topArea}>
@@ -399,7 +395,7 @@ function ContainerMap({ profile }) {
         {!selected ? (
           <div style={cs.placeholderBox}>
             <p style={cs.placeholderTitle}>เลือกช่องจากตู้คอน</p>
-            <p style={cs.placeholderSub}>แตะช่องที่ต้องการเพื่อดูรายการสินค้าจริง</p>
+            <p style={cs.placeholderSub}>แตะช่องที่ต้องการเพื่อดูรายการสินค้าในหน้านี้ทันที</p>
           </div>
         ) : (
           <>
@@ -408,9 +404,7 @@ function ContainerMap({ profile }) {
                 <div style={cs.detailTitle}>{selected.label}</div>
                 <div style={cs.detailSub}>{selectedPallet ? `พาเลท ${selectedPallet.pallet_code}` : 'กำลังตรวจสอบพาเลท...'}</div>
               </div>
-              <button style={cs.inlineAddBtn} disabled>
-                + เพิ่มสินค้า
-              </button>
+              <button style={cs.inlineAddBtn} disabled>+ เพิ่มสินค้า</button>
             </div>
 
             {detailLoading ? (
@@ -427,20 +421,26 @@ function ContainerMap({ profile }) {
                 <p style={cs.placeholderSub}>ช่องนี้ยังไม่มีรายการสินค้าในระบบ</p>
               </div>
             ) : (
-              <div style={cs.inlineList}>
-                {detailItems.map((item, i) => (
-                  <div key={item.id} style={{ ...cs.inlineRow, borderTop: i > 0 ? '1px solid #f1f1f3' : 'none' }}>
+              <div style={cs.inlineListNoScroll}>
+                {compactItems.map((item, i) => (
+                  <div key={item.id} style={{ ...cs.inlineRowCompact, borderTop: i > 0 ? '1px solid #f1f1f3' : 'none' }}>
                     <div style={{ minWidth: 0, flex: 1 }}>
-                      <div style={cs.inlineItemName}>{item.item_name}</div>
-                      <div style={cs.inlineItemCode}>{item.item_code}</div>
+                      <div style={cs.inlineItemNameCompact}>{item.item_name}</div>
+                      <div style={cs.inlineItemCodeCompact}>{item.item_code}</div>
                     </div>
 
-                    <div style={cs.inlineActions}>
-                      <span style={cs.inlineQty}>{item.qty}</span>
-                      <button onClick={() => handleDeductInline(item)} style={cs.inlineDeductBtn}>ลบ</button>
+                    <div style={cs.inlineActionsCompact}>
+                      <span style={cs.inlineQtyCompact}>{item.qty}</span>
+                      <button onClick={() => handleDeductInline(item)} style={cs.inlineDeductBtnCompact}>ลบ</button>
                     </div>
                   </div>
                 ))}
+
+                {hiddenCount > 0 && (
+                  <div style={cs.moreHint}>
+                    และอีก {hiddenCount} รายการ
+                  </div>
+                )}
               </div>
             )}
           </>
@@ -451,48 +451,54 @@ function ContainerMap({ profile }) {
 }
 
 const cs = {
-  page: { height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden', padding: 8, boxSizing: 'border-box', gap: 8 },
-  topArea: { flex: '0 0 auto' },
-  wrapper: { background: '#fff', borderRadius: 18, padding: 10, border: '1px solid #ececec' },
-  headerRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, marginBottom: 10 },
+  page: {
+    height: '100%',
+    display: 'grid',
+    gridTemplateRows: 'minmax(0, 58%) minmax(0, 42%)',
+    overflow: 'hidden',
+    padding: 8,
+    boxSizing: 'border-box',
+    gap: 8,
+  },
+  topArea: { minHeight: 0 },
+  wrapper: { height: '100%', background: '#fff', borderRadius: 18, padding: 10, border: '1px solid #ececec', boxSizing: 'border-box', overflow: 'hidden' },
+  headerRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, marginBottom: 8 },
   sectionTitle: { fontSize: 12, fontWeight: 700, color: '#1a1a1a', lineHeight: 1.2 },
   sectionHint: { fontSize: 10, color: '#8d8d95', textAlign: 'right', lineHeight: 1.3, maxWidth: 120 },
   groupsGrid: { display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 6, alignItems: 'stretch' },
-  groupCard: { background: '#f8f8f8', borderRadius: 14, padding: '8px 5px 10px', border: '1px solid #ededed', minWidth: 0 },
+  groupCard: { background: '#f8f8f8', borderRadius: 14, padding: '8px 5px 8px', border: '1px solid #ededed', minWidth: 0 },
   groupSlots: { display: 'grid', gridTemplateColumns: '1fr', gap: 6 },
   rowPair: { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 6 },
   slotWrap: { minWidth: 0 },
-  groupLabel: { marginTop: 8, textAlign: 'center', fontSize: 13, fontWeight: 700, color: '#666', letterSpacing: '0.28em', paddingLeft: '0.28em' },
+  groupLabel: { marginTop: 6, textAlign: 'center', fontSize: 12, fontWeight: 700, color: '#666', letterSpacing: '0.24em', paddingLeft: '0.24em' },
 
-  cell: { borderRadius: 14, padding: '7px 3px 6px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', minHeight: 88, cursor: 'pointer', minWidth: 0 },
+  cell: { borderRadius: 14, padding: '6px 3px 5px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', minHeight: 'clamp(62px, 11vw, 84px)', cursor: 'pointer', minWidth: 0, boxSizing: 'border-box' },
   emptyCell: { background: '#fafafa', border: '1.5px dashed #e4e4e7' },
-  number: { fontSize: 13, fontWeight: 800, color: '#1a1a1a', lineHeight: 1 },
-  labelText: { fontSize: 6.5, color: '#8f8f97', lineHeight: 1.15, marginTop: 4, textAlign: 'center', wordBreak: 'break-word' },
-  count: { fontSize: 15, fontWeight: 700, color: '#16a34a', lineHeight: 1, marginTop: 6 },
-  plus: { fontSize: 14, color: '#c3c3c8', lineHeight: 1, marginTop: 6 },
+  number: { fontSize: 'clamp(12px, 2.2vw, 16px)', fontWeight: 800, color: '#1a1a1a', lineHeight: 1 },
+  labelText: { fontSize: 'clamp(6px, 1.2vw, 8px)', color: '#8f8f97', lineHeight: 1.1, marginTop: 3, textAlign: 'center', wordBreak: 'break-word' },
+  count: { fontSize: 'clamp(13px, 2vw, 16px)', fontWeight: 700, color: '#16a34a', lineHeight: 1, marginTop: 4 },
+  plus: { fontSize: 'clamp(12px, 2vw, 15px)', color: '#c3c3c8', lineHeight: 1, marginTop: 4 },
 
-  detailBox: { flex: 1, minHeight: 0, background: '#fff', borderRadius: 18, border: '1px solid #ececec', padding: 10, display: 'flex', flexDirection: 'column', overflow: 'hidden' },
-  detailHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, paddingBottom: 8, borderBottom: '1px solid #f1f1f3' },
-  detailTitle: { fontSize: 16, fontWeight: 700, color: '#1a1a1a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
-  detailSub: { fontSize: 12, color: '#8d8d95', marginTop: 2 },
-  inlineAddBtn: { padding: '8px 12px', background: '#edf6ff', color: '#1677ff', border: '1px solid #bfdbfe', borderRadius: 10, fontSize: 12, fontWeight: 700, cursor: 'not-allowed', opacity: 0.75, flexShrink: 0 },
+  detailBox: { minHeight: 0, background: '#fff', borderRadius: 18, border: '1px solid #ececec', padding: 10, display: 'flex', flexDirection: 'column', overflow: 'hidden', boxSizing: 'border-box' },
+  detailHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, paddingBottom: 8, borderBottom: '1px solid #f1f1f3' },
+  detailTitle: { fontSize: 15, fontWeight: 700, color: '#1a1a1a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
+  detailSub: { fontSize: 11, color: '#8d8d95', marginTop: 2 },
+  inlineAddBtn: { padding: '7px 10px', background: '#edf6ff', color: '#1677ff', border: '1px solid #bfdbfe', borderRadius: 10, fontSize: 11, fontWeight: 700, cursor: 'not-allowed', opacity: 0.75, flexShrink: 0 },
 
   placeholderBox: { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4, padding: 12, textAlign: 'center' },
-  placeholderTitle: { fontSize: 14, fontWeight: 700, color: '#444' },
-  placeholderSub: { fontSize: 12, color: '#999' },
+  placeholderTitle: { fontSize: 13, fontWeight: 700, color: '#444' },
+  placeholderSub: { fontSize: 11, color: '#999' },
 
-  inlineList: { flex: 1, minHeight: 0, overflowY: 'auto' },
-  inlineRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '10px 2px' },
-  inlineItemName: { fontSize: 13, fontWeight: 600, color: '#1a1a1a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
-  inlineItemCode: { fontSize: 11, color: '#8d8d95', marginTop: 3 },
-  inlineActions: { display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 },
-  inlineQty: { minWidth: 26, textAlign: 'center', fontSize: 15, fontWeight: 700, color: '#111' },
-  inlineDeductBtn: { padding: '6px 10px', background: '#fff5f5', color: '#e53e3e', border: '1px solid #fecaca', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer' },
+  inlineListNoScroll: { flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' },
+  inlineRowCompact: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '8px 2px', minHeight: 0 },
+  inlineItemNameCompact: { fontSize: 12, fontWeight: 600, color: '#1a1a1a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
+  inlineItemCodeCompact: { fontSize: 10, color: '#8d8d95', marginTop: 2 },
+  inlineActionsCompact: { display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 },
+  inlineQtyCompact: { minWidth: 22, textAlign: 'center', fontSize: 14, fontWeight: 700, color: '#111' },
+  inlineDeductBtnCompact: { padding: '5px 8px', background: '#fff5f5', color: '#e53e3e', border: '1px solid #fecaca', borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: 'pointer' },
+  moreHint: { marginTop: 'auto', paddingTop: 6, fontSize: 10, color: '#8d8d95', textAlign: 'center' },
 }
 
-// ============================================================
-// MapPage — main component ที่มี tab Tent / Container
-// ============================================================
 export default function MapPage({ profile }) {
   const [activeZone, setActiveZone] = useState('tent')
 
@@ -517,7 +523,7 @@ export default function MapPage({ profile }) {
         </div>
       </div>
 
-      <div style={{ flex: 1, overflowY: 'auto' }}>
+      <div style={{ flex: 1, overflow: 'hidden' }}>
         {activeZone === 'tent'
           ? <TentMap profile={profile} />
           : <ContainerMap profile={profile} />
