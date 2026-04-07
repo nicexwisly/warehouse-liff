@@ -226,6 +226,102 @@ const ts = {
   plus: { fontSize: 16, color: '#ccc' },
 }
 
+function ContainerPopup({
+  selected,
+  selectedPallet,
+  detailLoading,
+  detailError,
+  detailItems,
+  onClose,
+  onDeduct,
+  onAdd,
+}) {
+  if (!selected) return null
+
+  const totalQty = detailItems.reduce((sum, item) => sum + Number(item.qty || 0), 0)
+
+  return (
+    <div style={cp.overlay} onClick={onClose}>
+      <div style={cp.card} onClick={e => e.stopPropagation()}>
+        <div style={cp.header}>
+          <div style={{ minWidth: 0 }}>
+            <div style={cp.badge}>Container {selected.label}</div>
+            <div style={cp.title}>รายการสินค้าในตำแหน่งนี้</div>
+            <div style={cp.sub}>
+              {selectedPallet
+                ? `พาเลท ${selectedPallet.pallet_code}`
+                : 'กำลังตรวจสอบพาเลท...'}
+            </div>
+          </div>
+
+          <button onClick={onClose} style={cp.closeBtn}>✕</button>
+        </div>
+
+        <div style={cp.summaryRow}>
+          <div style={cp.summaryCard}>
+            <div style={cp.summaryLabel}>จำนวนรายการ</div>
+            <div style={cp.summaryValue}>{detailItems.length} SKU</div>
+          </div>
+          <div style={cp.summaryCard}>
+            <div style={cp.summaryLabel}>จำนวนรวม</div>
+            <div style={cp.summaryValue}>{totalQty} ชิ้น</div>
+          </div>
+        </div>
+
+        <div style={cp.addWrap}>
+          <button onClick={onAdd} style={cp.addBtn}>
+            + เพิ่มสินค้า
+          </button>
+        </div>
+
+        {detailLoading ? (
+          <div style={cp.emptyWrap}>
+            <p style={cp.emptyText}>กำลังโหลดรายการ...</p>
+          </div>
+        ) : detailError ? (
+          <div style={cp.emptyWrap}>
+            <p style={{ ...cp.emptyText, color: '#dc2626' }}>{detailError}</p>
+          </div>
+        ) : detailItems.length === 0 ? (
+          <div style={cp.emptyWrap}>
+            <p style={cp.emptyTitle}>ยังไม่มีสินค้า</p>
+            <p style={cp.emptyText}>ตำแหน่งนี้ยังไม่มีรายการสินค้าในระบบ</p>
+          </div>
+        ) : (
+          <div style={cp.list}>
+            {detailItems.map(item => (
+              <div key={item.id} style={cp.itemCard}>
+                <div style={cp.itemRow}>
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={cp.itemCode}>ITEM {item.item_code}</div>
+                    <div style={cp.itemName}>{item.item_name}</div>
+                    <div style={cp.itemQtyBadge}>
+                      คงเหลือ {item.qty} {item.unit || 'ชิ้น'}
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => onDeduct(item)}
+                    style={cp.deductBtn}
+                  >
+                    หยิบออก
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div style={cp.footer}>
+          <button onClick={onClose} style={cp.footerCloseBtn}>
+            ปิดหน้าต่าง
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function ContainerMap({ profile }) {
   const [map, setMap] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -297,6 +393,10 @@ function ContainerMap({ profile }) {
     }
   }
 
+  function handleAddPlaceholder() {
+    window.alert('ปุ่มเพิ่มสินค้าพร้อมแล้ว เดี๋ยวค่อยต่อ UI ด้านในขั้นถัดไป')
+  }
+
   if (loading) return <p style={{ padding: 24, textAlign: 'center', color: '#888' }}>กำลังโหลด...</p>
   if (!map) return null
 
@@ -357,16 +457,13 @@ function ContainerMap({ profile }) {
     )
   }
 
-  const compactItems = detailItems.slice(0, 3)
-  const hiddenCount = Math.max(0, detailItems.length - compactItems.length)
-
   return (
-    <div style={cs.page}>
-      <div style={cs.topArea}>
-        <div style={cs.wrapper}>
+    <>
+      <div style={cs.pagePopupMode}>
+        <div style={cs.wrapperFull}>
           <div style={cs.headerRow}>
             <p style={cs.sectionTitle}>Container ST129</p>
-            <p style={cs.sectionHint}>แตะช่องเพื่อดูรายการสินค้าแบบ inline</p>
+            <p style={cs.sectionHint}>แตะช่องเพื่อดูรายการสินค้าแบบ popup</p>
           </div>
 
           <div style={cs.groupsGrid}>
@@ -391,77 +488,41 @@ function ContainerMap({ profile }) {
         </div>
       </div>
 
-      <div style={cs.detailBox}>
-        {!selected ? (
-          <div style={cs.placeholderBox}>
-            <p style={cs.placeholderTitle}>เลือกช่องจากตู้คอน</p>
-            <p style={cs.placeholderSub}>แตะช่องที่ต้องการเพื่อดูรายการสินค้าในหน้านี้ทันที</p>
-          </div>
-        ) : (
-          <>
-            <div style={cs.detailHeader}>
-              <div style={{ minWidth: 0 }}>
-                <div style={cs.detailTitle}>{selected.label}</div>
-                <div style={cs.detailSub}>{selectedPallet ? `พาเลท ${selectedPallet.pallet_code}` : 'กำลังตรวจสอบพาเลท...'}</div>
-              </div>
-              <button style={cs.inlineAddBtn} disabled>+ เพิ่มสินค้า</button>
-            </div>
-
-            {detailLoading ? (
-              <div style={cs.placeholderBox}>
-                <p style={cs.placeholderSub}>กำลังโหลดรายการ...</p>
-              </div>
-            ) : detailError ? (
-              <div style={cs.placeholderBox}>
-                <p style={{ ...cs.placeholderSub, color: '#e53e3e' }}>{detailError}</p>
-              </div>
-            ) : detailItems.length === 0 ? (
-              <div style={cs.placeholderBox}>
-                <p style={cs.placeholderTitle}>ยังไม่มีสินค้า</p>
-                <p style={cs.placeholderSub}>ช่องนี้ยังไม่มีรายการสินค้าในระบบ</p>
-              </div>
-            ) : (
-              <div style={cs.inlineListNoScroll}>
-                {compactItems.map((item, i) => (
-                  <div key={item.id} style={{ ...cs.inlineRowCompact, borderTop: i > 0 ? '1px solid #f1f1f3' : 'none' }}>
-                    <div style={{ minWidth: 0, flex: 1 }}>
-                      <div style={cs.inlineItemNameCompact}>{item.item_name}</div>
-                      <div style={cs.inlineItemCodeCompact}>{item.item_code}</div>
-                    </div>
-
-                    <div style={cs.inlineActionsCompact}>
-                      <span style={cs.inlineQtyCompact}>{item.qty}</span>
-                      <button onClick={() => handleDeductInline(item)} style={cs.inlineDeductBtnCompact}>ลบ</button>
-                    </div>
-                  </div>
-                ))}
-
-                {hiddenCount > 0 && (
-                  <div style={cs.moreHint}>
-                    และอีก {hiddenCount} รายการ
-                  </div>
-                )}
-              </div>
-            )}
-          </>
-        )}
-      </div>
-    </div>
+      <ContainerPopup
+        selected={selected}
+        selectedPallet={selectedPallet}
+        detailLoading={detailLoading}
+        detailError={detailError}
+        detailItems={detailItems}
+        onClose={() => {
+          setSelected(null)
+          setSelectedPallet(null)
+          setDetailItems([])
+          setDetailError(null)
+        }}
+        onDeduct={handleDeductInline}
+        onAdd={handleAddPlaceholder}
+      />
+    </>
   )
 }
 
 const cs = {
-  page: {
+  pagePopupMode: {
     height: '100%',
-    display: 'grid',
-    gridTemplateRows: 'minmax(0, 58%) minmax(0, 42%)',
     overflow: 'hidden',
     padding: 8,
     boxSizing: 'border-box',
-    gap: 8,
   },
-  topArea: { minHeight: 0 },
-  wrapper: { height: '100%', background: '#fff', borderRadius: 18, padding: 10, border: '1px solid #ececec', boxSizing: 'border-box', overflow: 'hidden' },
+  wrapperFull: {
+    height: '100%',
+    background: '#fff',
+    borderRadius: 18,
+    padding: 10,
+    border: '1px solid #ececec',
+    boxSizing: 'border-box',
+    overflow: 'hidden',
+  },
   headerRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, marginBottom: 8 },
   sectionTitle: { fontSize: 12, fontWeight: 700, color: '#1a1a1a', lineHeight: 1.2 },
   sectionHint: { fontSize: 10, color: '#8d8d95', textAlign: 'right', lineHeight: 1.3, maxWidth: 120 },
@@ -471,34 +532,209 @@ const cs = {
   rowPair: { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 6 },
   slotWrap: { minWidth: 0 },
   groupLabel: { marginTop: 6, textAlign: 'center', fontSize: 12, fontWeight: 700, color: '#666', letterSpacing: '0.24em', paddingLeft: '0.24em' },
-
   cell: { borderRadius: 14, padding: '6px 3px 5px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', minHeight: 'clamp(62px, 11vw, 84px)', cursor: 'pointer', minWidth: 0, boxSizing: 'border-box' },
   emptyCell: { background: '#fafafa', border: '1.5px dashed #e4e4e7' },
   number: { fontSize: 'clamp(12px, 2.2vw, 16px)', fontWeight: 800, color: '#1a1a1a', lineHeight: 1 },
   labelText: { fontSize: 'clamp(6px, 1.2vw, 8px)', color: '#8f8f97', lineHeight: 1.1, marginTop: 3, textAlign: 'center', wordBreak: 'break-word' },
   count: { fontSize: 'clamp(13px, 2vw, 16px)', fontWeight: 700, color: '#16a34a', lineHeight: 1, marginTop: 4 },
   plus: { fontSize: 'clamp(12px, 2vw, 15px)', color: '#c3c3c8', lineHeight: 1, marginTop: 4 },
-
-  detailBox: { minHeight: 0, background: '#fff', borderRadius: 18, border: '1px solid #ececec', padding: 10, display: 'flex', flexDirection: 'column', overflow: 'hidden', boxSizing: 'border-box' },
-  detailHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, paddingBottom: 8, borderBottom: '1px solid #f1f1f3' },
-  detailTitle: { fontSize: 15, fontWeight: 700, color: '#1a1a1a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
-  detailSub: { fontSize: 11, color: '#8d8d95', marginTop: 2 },
-  inlineAddBtn: { padding: '7px 10px', background: '#edf6ff', color: '#1677ff', border: '1px solid #bfdbfe', borderRadius: 10, fontSize: 11, fontWeight: 700, cursor: 'not-allowed', opacity: 0.75, flexShrink: 0 },
-
-  placeholderBox: { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4, padding: 12, textAlign: 'center' },
-  placeholderTitle: { fontSize: 13, fontWeight: 700, color: '#444' },
-  placeholderSub: { fontSize: 11, color: '#999' },
-
-  inlineListNoScroll: { flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' },
-  inlineRowCompact: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '8px 2px', minHeight: 0 },
-  inlineItemNameCompact: { fontSize: 12, fontWeight: 600, color: '#1a1a1a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
-  inlineItemCodeCompact: { fontSize: 10, color: '#8d8d95', marginTop: 2 },
-  inlineActionsCompact: { display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 },
-  inlineQtyCompact: { minWidth: 22, textAlign: 'center', fontSize: 14, fontWeight: 700, color: '#111' },
-  inlineDeductBtnCompact: { padding: '5px 8px', background: '#fff5f5', color: '#e53e3e', border: '1px solid #fecaca', borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: 'pointer' },
-  moreHint: { marginTop: 'auto', paddingTop: 6, fontSize: 10, color: '#8d8d95', textAlign: 'center' },
 }
 
+const cp = {
+  overlay: {
+    position: 'fixed',
+    inset: 0,
+    background: 'rgba(15, 23, 42, 0.42)',
+    backdropFilter: 'blur(2px)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+    zIndex: 200,
+  },
+  card: {
+    width: '100%',
+    maxWidth: 380,
+    maxHeight: '82vh',
+    background: '#fff',
+    borderRadius: 24,
+    border: '1px solid #e5e7eb',
+    boxShadow: '0 18px 48px rgba(0,0,0,0.18)',
+    overflow: 'hidden',
+    display: 'flex',
+    flexDirection: 'column',
+  },
+  header: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: 12,
+    padding: '16px 16px 12px',
+    borderBottom: '1px solid #f1f5f9',
+  },
+  badge: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    padding: '5px 10px',
+    borderRadius: 999,
+    background: '#ecfdf3',
+    color: '#15803d',
+    border: '1px solid #bbf7d0',
+    fontSize: 11,
+    fontWeight: 700,
+  },
+  title: {
+    marginTop: 8,
+    fontSize: 18,
+    fontWeight: 800,
+    color: '#0f172a',
+    lineHeight: 1.2,
+  },
+  sub: {
+    marginTop: 4,
+    fontSize: 13,
+    color: '#64748b',
+  },
+  closeBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 999,
+    border: '1px solid #e2e8f0',
+    background: '#fff',
+    color: '#64748b',
+    fontSize: 16,
+    fontWeight: 700,
+    cursor: 'pointer',
+    flexShrink: 0,
+  },
+  summaryRow: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: 8,
+    padding: '12px 16px 0',
+  },
+  summaryCard: {
+    background: '#f8fafc',
+    border: '1px solid #e2e8f0',
+    borderRadius: 16,
+    padding: '10px 12px',
+  },
+  summaryLabel: {
+    fontSize: 11,
+    color: '#94a3b8',
+  },
+  summaryValue: {
+    marginTop: 4,
+    fontSize: 15,
+    fontWeight: 700,
+    color: '#0f172a',
+  },
+  addWrap: {
+    padding: '12px 16px 10px',
+  },
+  addBtn: {
+    width: '100%',
+    border: 'none',
+    borderRadius: 16,
+    background: '#111827',
+    color: '#fff',
+    padding: '13px 14px',
+    fontSize: 14,
+    fontWeight: 700,
+    cursor: 'pointer',
+  },
+  list: {
+    flex: 1,
+    minHeight: 0,
+    overflowY: 'auto',
+    background: '#f8fafc',
+    padding: '10px 16px 14px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 10,
+  },
+  itemCard: {
+    background: '#fff',
+    border: '1px solid #e2e8f0',
+    borderRadius: 18,
+    padding: 12,
+    boxShadow: '0 2px 10px rgba(0,0,0,0.03)',
+  },
+  itemRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 12,
+  },
+  itemCode: {
+    fontSize: 11,
+    fontWeight: 700,
+    color: '#94a3b8',
+    letterSpacing: '0.04em',
+  },
+  itemName: {
+    marginTop: 4,
+    fontSize: 14,
+    fontWeight: 700,
+    color: '#0f172a',
+    lineHeight: 1.35,
+    wordBreak: 'break-word',
+  },
+  itemQtyBadge: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    marginTop: 8,
+    padding: '6px 10px',
+    borderRadius: 999,
+    background: '#ecfdf3',
+    color: '#15803d',
+    border: '1px solid #bbf7d0',
+    fontSize: 12,
+    fontWeight: 700,
+  },
+  deductBtn: {
+    flexShrink: 0,
+    alignSelf: 'center',
+    border: 'none',
+    borderRadius: 14,
+    background: '#dc2626',
+    color: '#fff',
+    padding: '12px 14px',
+    fontSize: 13,
+    fontWeight: 700,
+    cursor: 'pointer',
+    minWidth: 88,
+  },
+  emptyWrap: {
+    padding: '28px 16px 32px',
+    textAlign: 'center',
+  },
+  emptyTitle: {
+    fontSize: 15,
+    fontWeight: 700,
+    color: '#334155',
+  },
+  emptyText: {
+    marginTop: 6,
+    fontSize: 13,
+    color: '#94a3b8',
+  },
+  footer: {
+    borderTop: '1px solid #f1f5f9',
+    padding: 16,
+    background: '#fff',
+  },
+  footerCloseBtn: {
+    width: '100%',
+    borderRadius: 16,
+    border: '1px solid #e2e8f0',
+    background: '#fff',
+    color: '#334155',
+    padding: '12px 14px',
+    fontSize: 14,
+    fontWeight: 700,
+    cursor: 'pointer',
+  },
+}
 export default function MapPage({ profile }) {
   const [activeZone, setActiveZone] = useState('tent')
 
