@@ -694,7 +694,7 @@ function ContainerMap({ profile }) {
         type: 'success',
         text: res?.message || `เพิ่มสินค้าในพาเลทหรือตู้คอน ${selected.label} เรียบร้อย`,
         action: {
-          label: undoLoading ? 'กำลังย้อนกลับ...' : 'Undo',
+          label: undoLoading ? 'กำลังย้อนกลับ...' : 'ย้อนกลับ',
           itemId: res?.id,
           qty,
         },
@@ -776,14 +776,14 @@ function ContainerMap({ profile }) {
       {actionToast && (
         <div style={cp.toastWrap}>
           <div style={{ ...cp.toast, ...(actionToast.type === 'success' ? cp.toastSuccess : cp.toastError) }}>
-            <span style={{ flex: 1 }}>{actionToast.text}</span>
+            <span style={cp.toastText}>{actionToast.text}</span>
             {actionToast.action?.itemId && actionToast.type === 'success' && (
               <button
                 onClick={() => handleUndoAdd(actionToast.action)}
                 style={cp.toastActionBtn}
                 disabled={undoLoading}
               >
-                {undoLoading ? 'กำลังย้อนกลับ...' : actionToast.action.label || 'Undo'}
+                {undoLoading ? 'กำลังย้อนกลับ...' : actionToast.action.label || 'ย้อนกลับ'}
               </button>
             )}
           </div>
@@ -1208,24 +1208,29 @@ const cp = {
   },
   toastWrap: {
     position: 'fixed',
-    top: 16,
+    bottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)',
     left: 0,
     right: 0,
     zIndex: 280,
     display: 'flex',
     justifyContent: 'center',
-    pointerEvents: 'none',
     padding: '0 16px',
+    pointerEvents: 'none',
   },
   toast: {
-    maxWidth: 340,
+    maxWidth: 360,
     width: '100%',
-    borderRadius: 16,
+    minHeight: 54,
+    borderRadius: 18,
     padding: '12px 14px',
     fontSize: 14,
     fontWeight: 700,
-    boxShadow: '0 12px 30px rgba(15, 23, 42, 0.12)',
-    textAlign: 'center',
+    boxShadow: '0 16px 40px rgba(15, 23, 42, 0.22)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    pointerEvents: 'auto',
   },
   toastSuccess: {
     background: '#ecfdf3',
@@ -1236,6 +1241,24 @@ const cp = {
     background: '#fff1f2',
     border: '1px solid #fecaca',
     color: '#dc2626',
+  },
+
+  toastText: {
+    flex: 1,
+    minWidth: 0,
+    textAlign: 'left',
+    lineHeight: 1.35,
+  },
+  toastActionBtn: {
+    flexShrink: 0,
+    border: 'none',
+    borderRadius: 12,
+    background: '#fff',
+    color: '#0f172a',
+    padding: '8px 12px',
+    fontSize: 13,
+    fontWeight: 800,
+    cursor: 'pointer',
   },
 }
 
