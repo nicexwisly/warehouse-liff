@@ -236,34 +236,22 @@ const ts = {
 function ContainerMap({ profile }) {
   const [map, setMap] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [modal, setModal] = useState(null)
+  const [selected, setSelected] = useState(null)
 
   async function loadMap() {
     setLoading(true)
-    try { setMap(await fetch(`${BASE}/locations/map?zone=container`).then(r => r.json())) } catch {}
+    try {
+      setMap(await fetch(`${BASE}/locations/map?zone=container`).then(r => r.json()))
+    } catch {}
     setLoading(false)
   }
 
   useEffect(() => { loadMap() }, [])
 
-  async function handleCellClick(data) {
-    setModal({ label: data.label, pallet: null, items: [], loading: true })
-    try {
-      const [locsRes, palsRes] = await Promise.all([
-        fetch(`${BASE}/locations`).then(r => r.json()),
-        fetch(`${BASE}/pallets`).then(r => r.json()),
-      ])
-      const loc = locsRes.find(l => l.label === data.label)
-      const pallet = palsRes.find(p => p.location_id === loc?.id)
-      if (!pallet) { setModal(m => ({ ...m, loading: false, error: 'ไม่พบพาเลทในตำแหน่งนี้' })); return }
-      const detail = await getPalletDetail(pallet.id)
-      setModal({ label: data.label, pallet, items: detail.items, loading: false })
-    } catch (e) { setModal(m => ({ ...m, loading: false, error: e.message })) }
-  }
-
-  if (loading) return <p style={{ padding: 24, textAlign: 'center', color: '#888' }}>กำลังโหลด...</p>
+  if (loading) return <p style={{ padding: 24, textAlign: 'center' }}>กำลังโหลด...</p>
   if (!map) return null
 
+  // ===== Transform data =====
   const conData = {}
   for (const [rowKey, slots] of Object.entries(map)) {
     const m = rowKey.match(/^CON(\d+)([A-Z]+)$/)
@@ -275,81 +263,98 @@ function ContainerMap({ profile }) {
   }
 
   const containerNos = Object.keys(conData).map(Number).sort()
-  const groupLabels = ['A', 'B', 'C', 'D', 'E', 'F']
-  const rowPairs = [
-    { leftSlot: 4, rightSlot: 4, leftNumber: 4, rightNumber: 8 },
-    { leftSlot: 3, rightSlot: 3, leftNumber: 3, rightNumber: 7 },
-    { leftSlot: 2, rightSlot: 2, leftNumber: 2, rightNumber: 6 },
-    { leftSlot: 1, rightSlot: 1, leftNumber: 1, rightNumber: 5 },
+
+  const layout = [
+    { left: 4, right: 8 },
+    { left: 3, right: 7 },
+    { left: 2, right: 6 },
+    { left: 1, right: 5 },
   ]
 
-  function getCellData(containerNo, rowLetter, slot) {
-    return conData[containerNo]?.[rowLetter]?.[String(slot)]?.['1'] || null
+  function getCell(containerNo, row, slot) {
+    return conData[containerNo]?.[row]?.[String(slot)]?.['1'] || null
   }
 
-  function renderCell(data, fallbackNumber) {
-    if (!data) {
-      return (
-        <div style={{ ...cs.cell, ...cs.emptyCell }}>
-          <span style={cs.number}>{fallbackNumber}</span>
-          <span style={cs.labelText}>-</span>
-          <span style={cs.plus}>+</span>
-        </div>
-      )
-    }
+  function renderCell(data, number) {
+    const active = selected?.label === data?.label
+    const hasItems = data?.item_count > 0
 
-    const hasItems = data.item_count > 0
     return (
       <div
-        onClick={() => handleCellClick(data)}
+        onClick={() => data && setSelected(data)}
         style={{
-          ...cs.cell,
-          background: hasItems ? '#eef8f0' : '#fafafa',
-          border: modal?.label === data.label
-            ? '1.5px solid #06c755'
+          borderRadius: 12,
+          padding: 6,
+          minHeight: 70,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          cursor: data ? 'pointer' : 'default',
+          background: active ? '#e6f4ff' : hasItems ? '#eef8f0' : '#fff',
+          border: active
+            ? '2px solid #1677ff'
             : hasItems
               ? '1.5px solid #b7e4c3'
-              : '1.5px solid #e2e8f0',
+              : '1px solid #eee',
         }}
       >
-        <span style={cs.number}>{fallbackNumber}</span>
-        <span style={cs.labelText}>{data.label}</span>
-        {hasItems ? <span style={cs.count}>{data.item_count}</span> : <span style={cs.plus}>+</span>}
+        <div style={{ fontWeight: 700 }}>{number}</div>
+        <div style={{ fontSize: 8, color: '#999' }}>{data?.label || '-'}</div>
+        <div style={{ marginTop: 4 }}>
+          {hasItems ? <span style={{ color: '#16a34a', fontWeight: 700 }}>{data.item_count}</span> : '+'}
+        </div>
       </div>
     )
   }
 
   return (
-    <div style={{ padding: '8px 10px' }}>
-      <div style={cs.wrapper}>
-        <div style={cs.headerRow}>
-          <p style={cs.sectionTitle}>Container ST129</p>
-          <p style={cs.sectionHint}>แตะช่องที่ต้องการจาก layout แนวตั้ง</p>
-        </div>
-
-        <div style={cs.groupsGrid}>
-          {containerNos.map((containerNo, index) => (
-            <div key={containerNo} style={cs.groupCard}>
-              <div style={cs.groupSlots}>
-                {rowPairs.map(pair => (
-                  <div key={`row-${containerNo}-${pair.leftNumber}-${pair.rightNumber}`} style={cs.rowPair}>
-                    <div style={cs.slotWrap}>
-                      {renderCell(getCellData(containerNo, 'A', pair.leftSlot), pair.leftNumber)}
-                    </div>
-                    <div style={cs.slotWrap}>
-                      {renderCell(getCellData(containerNo, 'B', pair.rightSlot), pair.rightNumber)}
-                    </div>
-                  </div>
-                ))}
+    <div style={{
+      height: '100%',
+      overflow: 'hidden',
+      display: 'flex',
+      flexDirection: 'column',
+      padding: 8
+    }}>
+      {/* GRID */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(3, 1fr)',
+        gap: 6
+      }}>
+        {containerNos.map((conNo, idx) => (
+          <div key={conNo} style={{ background: '#f8f8f8', borderRadius: 12, padding: 6 }}>
+            {layout.map((row, i) => (
+              <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 6 }}>
+                {renderCell(getCell(conNo, 'A', row.left), row.left)}
+                {renderCell(getCell(conNo, 'B', row.right), row.right)}
               </div>
-              <div style={cs.groupLabel}>{groupLabels[index] || String(containerNo)}</div>
-            </div>
-          ))}
-        </div>
+            ))}
+            <div style={{ textAlign: 'center', fontWeight: 700 }}>{['A','B','C'][idx]}</div>
+          </div>
+        ))}
       </div>
 
-      {modal && <PalletModal modal={modal} profile={profile} onClose={() => { setModal(null); loadMap() }}
-        onRefresh={items => setModal(m => ({ ...m, items }))} />}
+      {/* INLINE DETAIL */}
+      {selected && (
+        <div style={{
+          marginTop: 8,
+          background: '#fff',
+          borderRadius: 12,
+          padding: 10,
+          border: '1px solid #eee'
+        }}>
+          <div style={{ fontWeight: 700 }}>{selected.label}</div>
+
+          {selected.item_count === 0 ? (
+            <div style={{ fontSize: 12, color: '#999' }}>ไม่มีสินค้า</div>
+          ) : (
+            <div style={{ fontSize: 12, color: '#333' }}>
+              มีสินค้า {selected.item_count} รายการ
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
