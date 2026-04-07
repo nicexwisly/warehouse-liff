@@ -1,14 +1,7 @@
 import { useEffect, useState } from 'react'
 import { getRecentHistory } from './api'
 import { theme } from './theme'
-
-function formatDate(dateStr) {
-  const d = new Date(dateStr)
-  return d.toLocaleString('th-TH', {
-    day: '2-digit', month: 'short', year: '2-digit',
-    hour: '2-digit', minute: '2-digit'
-  })
-}
+import { formatDateTimeTH } from './datetime'
 
 function ActionBadge({ action }) {
   const map = {
@@ -45,7 +38,7 @@ export default function HistoryPage() {
             <div key={h.id} style={{ ...styles.card, borderTop: i === 0 ? 'none' : `1px solid ${theme.lineSoft}` }}>
               <div style={styles.row1}>
                 <ActionBadge action={h.action} />
-                <span style={styles.time}>{formatDate(h.moved_at)}</span>
+                <span style={styles.time}>{formatDateTimeTH(h.moved_at)}</span>
               </div>
               <p style={styles.itemName}>{h.item_name || `Item #${h.item_id}`}</p>
               <p style={styles.itemCode}>{h.item_code}</p>
