@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { getPalletDetail, addItem, deductItem } from './api'
 import ItemSearchInput from './ItemSearchInput'
 
@@ -375,6 +375,86 @@ function ConfirmDeductModal({ item, loading, error, onClose, onConfirm }) {
   )
 }
 
+
+
+function AddItemModal({
+  open,
+  selected,
+  selectedPallet,
+  form,
+  loading,
+  error,
+  onClose,
+  onChangeItem,
+  onClearItem,
+  onChangeQty,
+  onSubmit,
+}) {
+  if (!open || !selected) return null
+
+  return (
+    <div style={am.overlay} onClick={loading ? undefined : onClose}>
+      <div style={am.card} onClick={e => e.stopPropagation()}>
+        <div style={am.header}>
+          <div style={{ minWidth: 0 }}>
+            <div style={am.badge}>เพิ่มสินค้าเข้าตำแหน่ง {selected.label}</div>
+            <div style={am.title}>เลือกสินค้าและกรอกจำนวน</div>
+            <div style={am.sub}>
+              {selectedPallet
+                ? `พาเลท ${selectedPallet.pallet_code} · ค้นหาได้ด้วย item code, ชื่อสินค้า หรือ barcode`
+                : 'ค้นหาได้ด้วย item code, ชื่อสินค้า หรือ barcode'}
+            </div>
+          </div>
+
+          <button onClick={onClose} style={am.closeBtn} disabled={loading}>✕</button>
+        </div>
+
+        <div style={am.body}>
+          <div>
+            <label style={am.label}>ค้นหาสินค้า</label>
+            <ItemSearchInput
+              value={{ item_code: form.item_code, item_name: form.item_name }}
+              onChange={onChangeItem}
+              onClear={onClearItem}
+            />
+            <div style={am.helper}>ค้นหาได้ด้วย: ชื่อสินค้า · รหัสสินค้า · barcode · หรือกดสแกน</div>
+          </div>
+
+          {form.item_code && form.item_name && (
+            <div style={am.selectedBox}>
+              <div style={am.selectedCode}>ITEM {form.item_code}</div>
+              <div style={am.selectedName}>{form.item_name}</div>
+              <div style={am.selectedHint}>พร้อมเพิ่มเข้า pallet/container นี้</div>
+            </div>
+          )}
+
+          <div>
+            <label style={am.label}>จำนวนที่ต้องการเพิ่ม</label>
+            <input
+              value={form.qty}
+              onChange={e => onChangeQty(e.target.value)}
+              inputMode="numeric"
+              placeholder="กรอกตัวเลข"
+              style={am.input}
+              disabled={loading}
+            />
+            <div style={am.helper}>กรอกเป็นตัวเลขเท่านั้น เช่น 1, 2, 3</div>
+          </div>
+
+          {error && <div style={am.errorBox}>{error}</div>}
+        </div>
+
+        <div style={am.footer}>
+          <button onClick={onClose} style={am.cancelBtn} disabled={loading}>ยกเลิก</button>
+          <button onClick={onSubmit} style={am.confirmBtn} disabled={loading}>
+            {loading ? 'กำลังบันทึก...' : 'ยืนยันเพิ่มสินค้า'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function ContainerMap({ profile }) {
   const [map, setMap] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -387,6 +467,10 @@ function ContainerMap({ profile }) {
   const [deductLoading, setDeductLoading] = useState(false)
   const [deductError, setDeductError] = useState('')
   const [actionToast, setActionToast] = useState(null)
+  const [addModalOpen, setAddModalOpen] = useState(false)
+  const [addForm, setAddForm] = useState({ item_code: '', item_name: '', qty: '1' })
+  const [addLoading, setAddLoading] = useState(false)
+  const [addError, setAddError] = useState('')
 
   async function loadMap() {
     setLoading(true)
@@ -474,8 +558,57 @@ function ContainerMap({ profile }) {
     }
   }
 
-  function handleAddPlaceholder() {
-    window.alert('ปุ่มเพิ่มสินค้าพร้อมแล้ว เดี๋ยวค่อยต่อ UI ด้านในขั้นถัดไป')
+  function openAddModal() {
+    setAddError('')
+    setAddForm({ item_code: '', item_name: '', qty: '1' })
+    setAddModalOpen(true)
+  }
+
+  async function handleAddSubmit() {
+    if (!selectedPallet?.id) {
+      setAddError('ไม่พบพาเลทของตำแหน่งนี้')
+      return
+    }
+
+    if (!addForm.item_code || !addForm.item_name) {
+      setAddError('กรุณาเลือกสินค้า')
+      return
+    }
+
+    const qty = Number(addForm.qty)
+    if (!addForm.qty || Number.isNaN(qty) || qty <= 0) {
+      setAddError('กรุณากรอกจำนวนเป็นตัวเลขที่ถูกต้อง')
+      return
+    }
+
+    setAddLoading(true)
+    setAddError('')
+    try {
+      const res = await addItem({
+        pallet_id: selectedPallet.id,
+        item_code: addForm.item_code,
+        item_name: addForm.item_name,
+        qty,
+        actor_name: profile?.displayName,
+        actor_user_id: profile?.userId,
+      })
+
+      setAddModalOpen(false)
+      setAddForm({ item_code: '', item_name: '', qty: '1' })
+      setActionToast({
+        type: 'success',
+        text: res?.message || `เพิ่มสินค้าในพาเลทหรือตู้คอน ${selected.label} เรียบร้อย`,
+      })
+
+      await loadMap()
+      if (selected?.label) {
+        await handleCellClick(selected)
+      }
+    } catch (e) {
+      setAddError(e.message || 'ไม่สามารถเพิ่มสินค้าได้')
+    } finally {
+      setAddLoading(false)
+    }
   }
 
   if (loading) return <p style={{ padding: 24, textAlign: 'center', color: '#888' }}>กำลังโหลด...</p>
@@ -590,9 +723,11 @@ function ContainerMap({ profile }) {
           setDetailError(null)
           setDeductModalItem(null)
           setDeductError('')
+          setAddModalOpen(false)
+          setAddError('')
         }}
         onDeduct={handleDeductInline}
-        onAdd={handleAddPlaceholder}
+        onAdd={openAddModal}
       />
 
       <ConfirmDeductModal
@@ -603,6 +738,8 @@ function ContainerMap({ profile }) {
           if (deductLoading) return
           setDeductModalItem(null)
           setDeductError('')
+          setAddModalOpen(false)
+          setAddError('')
         }}
         onConfirm={confirmDeductInline}
       />
@@ -1016,6 +1153,172 @@ const dm = {
     fontWeight: 700,
     cursor: 'pointer',
     boxShadow: '0 10px 20px rgba(220, 38, 38, 0.22)',
+  },
+}
+
+
+const am = {
+  overlay: {
+    position: 'fixed',
+    inset: 0,
+    background: 'rgba(15, 23, 42, 0.3)',
+    backdropFilter: 'blur(1px)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+    zIndex: 270,
+  },
+  card: {
+    width: '100%',
+    maxWidth: 336,
+    maxHeight: '84vh',
+    background: '#fff',
+    borderRadius: 26,
+    border: '1px solid #e2e8f0',
+    boxShadow: '0 24px 60px rgba(15, 23, 42, 0.2)',
+    overflow: 'hidden',
+    display: 'flex',
+    flexDirection: 'column',
+  },
+  header: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: 12,
+    padding: '16px 16px 12px',
+    borderBottom: '1px solid #f1f5f9',
+  },
+  badge: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    padding: '5px 10px',
+    borderRadius: 999,
+    background: '#f1f5f9',
+    color: '#334155',
+    border: '1px solid #e2e8f0',
+    fontSize: 11,
+    fontWeight: 700,
+  },
+  title: {
+    marginTop: 10,
+    fontSize: 16,
+    fontWeight: 800,
+    color: '#0f172a',
+    lineHeight: 1.3,
+  },
+  sub: {
+    marginTop: 6,
+    fontSize: 13,
+    color: '#64748b',
+    lineHeight: 1.45,
+  },
+  closeBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 999,
+    border: '1px solid #e2e8f0',
+    background: '#fff',
+    color: '#64748b',
+    fontSize: 16,
+    fontWeight: 700,
+    cursor: 'pointer',
+    flexShrink: 0,
+  },
+  body: {
+    padding: 16,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 14,
+    overflowY: 'auto',
+  },
+  label: {
+    display: 'block',
+    marginBottom: 8,
+    fontSize: 14,
+    fontWeight: 700,
+    color: '#334155',
+  },
+  helper: {
+    marginTop: 8,
+    fontSize: 12,
+    color: '#94a3b8',
+    lineHeight: 1.4,
+  },
+  selectedBox: {
+    borderRadius: 18,
+    border: '1px solid #dbeafe',
+    background: '#f0f9ff',
+    padding: 12,
+  },
+  selectedCode: {
+    fontSize: 11,
+    fontWeight: 700,
+    color: '#94a3b8',
+    letterSpacing: '0.04em',
+  },
+  selectedName: {
+    marginTop: 4,
+    fontSize: 14,
+    fontWeight: 700,
+    color: '#0f172a',
+    lineHeight: 1.45,
+  },
+  selectedHint: {
+    marginTop: 6,
+    fontSize: 12,
+    color: '#64748b',
+  },
+  input: {
+    width: '100%',
+    boxSizing: 'border-box',
+    borderRadius: 18,
+    border: '1px solid #e2e8f0',
+    background: '#fff',
+    padding: '14px 16px',
+    fontSize: 16,
+    fontWeight: 700,
+    color: '#0f172a',
+    outline: 'none',
+  },
+  errorBox: {
+    borderRadius: 16,
+    border: '1px solid #fecaca',
+    background: '#fff1f2',
+    color: '#dc2626',
+    padding: '10px 12px',
+    fontSize: 13,
+    fontWeight: 600,
+    lineHeight: 1.4,
+  },
+  footer: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: 8,
+    padding: 16,
+    borderTop: '1px solid #f1f5f9',
+    background: '#fff',
+  },
+  cancelBtn: {
+    borderRadius: 16,
+    border: '1px solid #e2e8f0',
+    background: '#fff',
+    color: '#475569',
+    padding: '12px 14px',
+    fontSize: 14,
+    fontWeight: 700,
+    cursor: 'pointer',
+  },
+  confirmBtn: {
+    borderRadius: 16,
+    border: 'none',
+    background: '#111827',
+    color: '#fff',
+    padding: '12px 14px',
+    fontSize: 14,
+    fontWeight: 700,
+    cursor: 'pointer',
+    boxShadow: '0 10px 20px rgba(17, 24, 39, 0.18)',
   },
 }
 
