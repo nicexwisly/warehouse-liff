@@ -322,6 +322,59 @@ function ContainerPopup({
   )
 }
 
+
+function ConfirmDeductModal({ item, loading, error, onClose, onConfirm }) {
+  const [qty, setQty] = useState('')
+
+  useEffect(() => {
+    setQty('')
+  }, [item?.id])
+
+  if (!item) return null
+
+  return (
+    <div style={dm.overlay} onClick={loading ? undefined : onClose}>
+      <div style={dm.card} onClick={e => e.stopPropagation()}>
+        <div style={dm.header}>
+          <div style={dm.badge}>ยืนยันการหยิบออก</div>
+          <div style={dm.title}>ระบุจำนวนสินค้าที่ต้องการหยิบออก</div>
+          <div style={dm.sub}>ตรวจสอบจำนวนก่อนกดยืนยัน หากเกินจำนวนคงเหลือ ระบบจะแจ้งเตือน</div>
+        </div>
+
+        <div style={dm.body}>
+          <div style={dm.itemBox}>
+            <div style={dm.itemCode}>ITEM {item.item_code}</div>
+            <div style={dm.itemName}>{item.item_name}</div>
+            <div style={dm.itemQty}>คงเหลือ {item.qty} {item.unit || 'ชิ้น'}</div>
+          </div>
+
+          <div>
+            <label style={dm.label}>จำนวนที่ต้องการหยิบออก</label>
+            <input
+              value={qty}
+              onChange={e => setQty(e.target.value.replace(/[^0-9]/g, ''))}
+              inputMode="numeric"
+              placeholder="กรอกตัวเลข"
+              style={dm.input}
+              disabled={loading}
+            />
+            <div style={dm.hint}>กรอกเป็นตัวเลขเท่านั้น เช่น 1, 2, 3</div>
+          </div>
+
+          {error && <div style={dm.errorBox}>{error}</div>}
+        </div>
+
+        <div style={dm.footer}>
+          <button onClick={onClose} style={dm.cancelBtn} disabled={loading}>ยกเลิก</button>
+          <button onClick={() => onConfirm(qty)} style={dm.confirmBtn} disabled={loading}>
+            {loading ? 'กำลังบันทึก...' : 'ยืนยันหยิบออก'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function ContainerMap({ profile }) {
   const [map, setMap] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -330,6 +383,10 @@ function ContainerMap({ profile }) {
   const [detailError, setDetailError] = useState(null)
   const [detailItems, setDetailItems] = useState([])
   const [selectedPallet, setSelectedPallet] = useState(null)
+  const [deductModalItem, setDeductModalItem] = useState(null)
+  const [deductLoading, setDeductLoading] = useState(false)
+  const [deductError, setDeductError] = useState('')
+  const [actionToast, setActionToast] = useState(null)
 
   async function loadMap() {
     setLoading(true)
@@ -338,6 +395,12 @@ function ContainerMap({ profile }) {
   }
 
   useEffect(() => { loadMap() }, [])
+
+  useEffect(() => {
+    if (!actionToast) return
+    const timer = setTimeout(() => setActionToast(null), 2200)
+    return () => clearTimeout(timer)
+  }, [actionToast])
 
   async function handleCellClick(data) {
     setSelected(data)
@@ -370,26 +433,44 @@ function ContainerMap({ profile }) {
     }
   }
 
-  async function handleDeductInline(item) {
-    const input = window.prompt(`หยิบ "${item.item_name}" ออกกี่ชิ้น? (มี ${item.qty})`)
-    if (!input) return
-    const qty = Number(input)
-    if (isNaN(qty) || qty <= 0) return
+  function handleDeductInline(item) {
+    setDeductError('')
+    setDeductModalItem(item)
+  }
 
+  async function confirmDeductInline(inputQty) {
+    const qty = Number(inputQty)
+
+    if (!inputQty || isNaN(qty) || qty <= 0) {
+      setDeductError('กรุณากรอกจำนวนที่ต้องการหยิบออกให้ถูกต้อง')
+      return
+    }
+
+    if (deductModalItem && qty > Number(deductModalItem.qty || 0)) {
+      setDeductError(`จำนวนที่กรอกเกินคงเหลือ (${deductModalItem.qty})`)
+      return
+    }
+
+    setDeductLoading(true)
+    setDeductError('')
     try {
-      await deductItem(item.id, {
+      const res = await deductItem(deductModalItem.id, {
         qty,
         actor_name: profile?.displayName,
         actor_user_id: profile?.userId,
       })
 
+      setDeductModalItem(null)
+      setActionToast({ type: 'success', text: res?.message || 'หยิบสินค้าออกเรียบร้อย' })
       await loadMap()
 
       if (selected?.label) {
         await handleCellClick(selected)
       }
     } catch (e) {
-      window.alert(e.message)
+      setDeductError(e.message || 'ไม่สามารถหยิบสินค้าออกได้')
+    } finally {
+      setDeductLoading(false)
     }
   }
 
@@ -459,6 +540,14 @@ function ContainerMap({ profile }) {
 
   return (
     <>
+      {actionToast && (
+        <div style={cp.toastWrap}>
+          <div style={{ ...cp.toast, ...(actionToast.type === 'success' ? cp.toastSuccess : cp.toastError) }}>
+            {actionToast.text}
+          </div>
+        </div>
+      )}
+
       <div style={cs.pagePopupMode}>
         <div style={cs.wrapperFull}>
           <div style={cs.headerRow}>
@@ -499,9 +588,23 @@ function ContainerMap({ profile }) {
           setSelectedPallet(null)
           setDetailItems([])
           setDetailError(null)
+          setDeductModalItem(null)
+          setDeductError('')
         }}
         onDeduct={handleDeductInline}
         onAdd={handleAddPlaceholder}
+      />
+
+      <ConfirmDeductModal
+        item={deductModalItem}
+        loading={deductLoading}
+        error={deductError}
+        onClose={() => {
+          if (deductLoading) return
+          setDeductModalItem(null)
+          setDeductError('')
+        }}
+        onConfirm={confirmDeductInline}
       />
     </>
   )
@@ -734,7 +837,188 @@ const cp = {
     fontWeight: 700,
     cursor: 'pointer',
   },
+  toastWrap: {
+    position: 'fixed',
+    top: 16,
+    left: 0,
+    right: 0,
+    zIndex: 280,
+    display: 'flex',
+    justifyContent: 'center',
+    pointerEvents: 'none',
+    padding: '0 16px',
+  },
+  toast: {
+    maxWidth: 340,
+    width: '100%',
+    borderRadius: 16,
+    padding: '12px 14px',
+    fontSize: 14,
+    fontWeight: 700,
+    boxShadow: '0 12px 30px rgba(15, 23, 42, 0.12)',
+    textAlign: 'center',
+  },
+  toastSuccess: {
+    background: '#ecfdf3',
+    border: '1px solid #bbf7d0',
+    color: '#15803d',
+  },
+  toastError: {
+    background: '#fff1f2',
+    border: '1px solid #fecaca',
+    color: '#dc2626',
+  },
 }
+
+const dm = {
+  overlay: {
+    position: 'fixed',
+    inset: 0,
+    background: 'rgba(15, 23, 42, 0.25)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+    zIndex: 260,
+  },
+  card: {
+    width: '100%',
+    maxWidth: 320,
+    background: '#fff',
+    borderRadius: 26,
+    border: '1px solid #e2e8f0',
+    boxShadow: '0 24px 60px rgba(15, 23, 42, 0.2)',
+    overflow: 'hidden',
+  },
+  header: {
+    padding: '16px 16px 12px',
+    borderBottom: '1px solid #f1f5f9',
+  },
+  badge: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    padding: '5px 10px',
+    borderRadius: 999,
+    background: '#fff1f2',
+    color: '#be123c',
+    border: '1px solid #fecdd3',
+    fontSize: 11,
+    fontWeight: 700,
+  },
+  title: {
+    marginTop: 10,
+    fontSize: 16,
+    fontWeight: 800,
+    color: '#0f172a',
+    lineHeight: 1.3,
+  },
+  sub: {
+    marginTop: 6,
+    fontSize: 13,
+    color: '#64748b',
+    lineHeight: 1.45,
+  },
+  body: {
+    padding: 16,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 14,
+  },
+  itemBox: {
+    borderRadius: 18,
+    border: '1px solid #e2e8f0',
+    background: '#f8fafc',
+    padding: 12,
+  },
+  itemCode: {
+    fontSize: 11,
+    fontWeight: 700,
+    color: '#94a3b8',
+    letterSpacing: '0.04em',
+  },
+  itemName: {
+    marginTop: 4,
+    fontSize: 14,
+    fontWeight: 700,
+    lineHeight: 1.45,
+    color: '#0f172a',
+  },
+  itemQty: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    marginTop: 10,
+    padding: '6px 10px',
+    borderRadius: 999,
+    background: '#ecfdf3',
+    border: '1px solid #bbf7d0',
+    color: '#15803d',
+    fontSize: 12,
+    fontWeight: 700,
+  },
+  label: {
+    display: 'block',
+    marginBottom: 8,
+    fontSize: 14,
+    fontWeight: 700,
+    color: '#334155',
+  },
+  input: {
+    width: '100%',
+    boxSizing: 'border-box',
+    borderRadius: 18,
+    border: '1px solid #e2e8f0',
+    background: '#fff',
+    padding: '14px 16px',
+    fontSize: 16,
+    fontWeight: 700,
+    color: '#0f172a',
+    outline: 'none',
+  },
+  hint: {
+    marginTop: 8,
+    fontSize: 12,
+    color: '#94a3b8',
+  },
+  errorBox: {
+    borderRadius: 16,
+    border: '1px solid #fecaca',
+    background: '#fff1f2',
+    color: '#dc2626',
+    padding: '10px 12px',
+    fontSize: 13,
+    fontWeight: 600,
+    lineHeight: 1.4,
+  },
+  footer: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: 8,
+    padding: 16,
+    borderTop: '1px solid #f1f5f9',
+  },
+  cancelBtn: {
+    borderRadius: 16,
+    border: '1px solid #e2e8f0',
+    background: '#fff',
+    color: '#475569',
+    padding: '12px 14px',
+    fontSize: 14,
+    fontWeight: 700,
+    cursor: 'pointer',
+  },
+  confirmBtn: {
+    borderRadius: 16,
+    border: 'none',
+    background: '#dc2626',
+    color: '#fff',
+    padding: '12px 14px',
+    fontSize: 14,
+    fontWeight: 700,
+    cursor: 'pointer',
+    boxShadow: '0 10px 20px rgba(220, 38, 38, 0.22)',
+  },
+}
+
 export default function MapPage({ profile }) {
   const [activeZone, setActiveZone] = useState('tent')
 
