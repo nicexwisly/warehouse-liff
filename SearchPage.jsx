@@ -9,11 +9,9 @@ function parseContainerLabel(label = '') {
   const match = label.match(/^CON(\d+)([A-Z])-?(\d{1,2})-(\d+)$/i)
   if (!match) return null
 
-  const containerNo = Number(match[1])
-  const zoneMap = { 1: 'A', 2: 'B', 3: 'C' }
-
   return {
-    zone: zoneMap[containerNo] || null,
+    containerNo: Number(match[1]),
+    zone: match[2].toUpperCase(),
     slot: Number(match[3]),
     level: Number(match[4]),
     label,
