@@ -39,6 +39,7 @@ function buildLocationMap(items) {
   items.forEach(item => {
     const qty = Number(item.qty) || 0
     const label = item.location_label || '-'
+
     summaryMap[label] = (summaryMap[label] || 0) + qty
 
     const con = parseContainerLabel(label)
@@ -46,7 +47,7 @@ function buildLocationMap(items) {
       const key = `${con.zone}-${con.slot}`
       containerHighlights[key] = {
         qty: (containerHighlights[key]?.qty || 0) + qty,
-        labels: Array.from(new Set([...(containerHighlights[key]?.labels || []), label])),
+        labels: [...new Set([...(containerHighlights[key]?.labels || []), label])],
       }
       return
     }
@@ -61,9 +62,7 @@ function buildLocationMap(items) {
     }
   })
 
-  const summary = Object.entries(summaryMap)
-    .map(([label, qty]) => ({ label, qty }))
-    .sort((a, b) => a.label.localeCompare(b.label, 'en'))
+  const summary = Object.entries(summaryMap).map(([label, qty]) => ({ label, qty }))
 
   return { containerHighlights, tentHighlights, summary }
 }
