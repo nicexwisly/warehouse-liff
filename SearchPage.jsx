@@ -34,19 +34,19 @@ function parseTentLabel(label = '') {
 function buildLocationMap(items) {
   const containerHighlights = {}
   const tentHighlights = {}
-  const summary = []
+  const summaryMap = {}
 
   items.forEach(item => {
     const qty = Number(item.qty) || 0
     const label = item.location_label || '-'
-    summary.push({ label, qty })
+    summaryMap[label] = (summaryMap[label] || 0) + qty
 
     const con = parseContainerLabel(label)
     if (con && con.zone) {
       const key = `${con.zone}-${con.slot}`
       containerHighlights[key] = {
         qty: (containerHighlights[key]?.qty || 0) + qty,
-        labels: [...(containerHighlights[key]?.labels || []), label],
+        labels: Array.from(new Set([...(containerHighlights[key]?.labels || []), label])),
       }
       return
     }
@@ -60,6 +60,10 @@ function buildLocationMap(items) {
       }
     }
   })
+
+  const summary = Object.entries(summaryMap)
+    .map(([label, qty]) => ({ label, qty }))
+    .sort((a, b) => a.label.localeCompare(b.label, 'en'))
 
   return { containerHighlights, tentHighlights, summary }
 }
