@@ -725,6 +725,7 @@ function ContainerMap({ profile }) {
   }
 
   const containerNos = Object.keys(conData).map(Number).sort((a, b) => b - a)
+  const groupLabels = containerNos.map(n => `ตู้คอนที่ ${n}`)
   const rowPairs = [
     { leftSlot: 4, rightSlot: 4, leftNumber: 4, rightNumber: 8 },
     { leftSlot: 3, rightSlot: 3, leftNumber: 3, rightNumber: 7 },
