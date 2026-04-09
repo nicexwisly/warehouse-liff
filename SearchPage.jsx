@@ -236,6 +236,36 @@ function SearchSummary({ results, query, onOpenMap }) {
   )
 }
 
+function groupSearchResults(items) {
+  const grouped = {}
+
+  items.forEach(item => {
+    const key = [
+      item.item_code || '',
+      item.item_name || '',
+      item.pallet_code || '',
+      item.location_label || '',
+    ].join('::')
+
+    if (!grouped[key]) {
+      grouped[key] = {
+        ...item,
+        grouped_key: key,
+        qty: 0,
+        sourceItems: [],
+      }
+    }
+
+    grouped[key].qty += Number(item.qty) || 0
+    grouped[key].sourceItems.push({
+      id: item.id,
+      qty: Number(item.qty) || 0,
+    })
+  })
+
+  return Object.values(grouped)
+}
+
 function ResultCard({ item, onDeduct }) {
   return (
     <div style={styles.resultCard}>
@@ -278,7 +308,7 @@ export default function SearchPage({ profile }) {
     setLoading(true)
     try {
       const items = await searchItems(val)
-      setResults(items)
+      setResults(groupSearchResults(items))
       setSearched(true)
       setShowMapModal(false)
     } catch (e) {
@@ -302,24 +332,49 @@ export default function SearchPage({ profile }) {
     handleSearch(searchVal)
   }
 
-  async function handleDeduct(item) {
-    const input = window.prompt(`หยิบ "${item.item_name}" ออกกี่ชิ้น? (มี ${item.qty} ${item.unit || 'ชิ้น'})`)
-    if (!input) return
-    const qty = Number(input)
-    if (isNaN(qty) || qty <= 0) return alert('จำนวนไม่ถูกต้อง')
-    try {
-      const res = await deductItem(item.id, {
-        qty,
+async function handleDeduct(item) {
+  const input = window.prompt(`หยิบ "${item.item_name}" ออกกี่ชิ้น? (มี ${item.qty} ${item.unit || 'ชิ้น'})`)
+  if (!input) return
+
+  const qty = Number(input)
+  if (isNaN(qty) || qty <= 0) return alert('จำนวนไม่ถูกต้อง')
+  if (qty > Number(item.qty || 0)) return alert(`จำนวนเกินคงเหลือ (${item.qty})`)
+
+  try {
+    let remaining = qty
+    let lastMessage = 'หยิบสินค้าออกเรียบร้อย'
+
+    const sourceItems = [...(item.sourceItems || [])]
+      .filter(source => Number(source.qty) > 0)
+
+    for (const source of sourceItems) {
+      if (remaining <= 0) break
+
+      const deductQty = Math.min(remaining, Number(source.qty || 0))
+      if (deductQty <= 0) continue
+
+      const res = await deductItem(source.id, {
+        qty: deductQty,
         actor_name: profile?.displayName,
         actor_user_id: profile?.userId,
       })
-      alert(res.message)
-      const refreshed = await searchItems(q.trim())
-      setResults(refreshed)
-    } catch (e) {
-      alert(e.message)
+
+      lastMessage = res?.message || lastMessage
+      remaining -= deductQty
     }
+
+    if (remaining > 0) {
+      throw new Error('ไม่สามารถหักสินค้าได้ครบตามจำนวนที่ต้องการ')
+    }
+
+    alert(lastMessage)
+
+    const refreshed = await searchItems(q.trim())
+    setResults(groupSearchResults(refreshed))
+  } catch (e) {
+    alert(e.message)
   }
+}
 
   return (
     <>
@@ -364,7 +419,7 @@ export default function SearchPage({ profile }) {
 
           <div style={styles.resultsList}>
             {results.map(item => (
-              <ResultCard key={item.id} item={item} onDeduct={handleDeduct} />
+              <ResultCard key={item.grouped_key || item.id} item={item} onDeduct={handleDeduct} />
             ))}
           </div>
         </div>
