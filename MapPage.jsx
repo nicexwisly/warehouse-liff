@@ -724,8 +724,7 @@ function ContainerMap({ profile }) {
     conData[conNo][rowLetter] = slots
   }
 
-  const containerNos = Object.keys(conData).map(Number).sort()
-  const groupLabels = ['A', 'B', 'C', 'D', 'E', 'F']
+  const containerNos = Object.keys(conData).map(Number).sort((a, b) => b - a)
   const rowPairs = [
     { leftSlot: 4, rightSlot: 4, leftNumber: 4, rightNumber: 8 },
     { leftSlot: 3, rightSlot: 3, leftNumber: 3, rightNumber: 7 },

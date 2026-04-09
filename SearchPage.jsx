@@ -80,8 +80,9 @@ function ContainerCell({ number, activeData }) {
 }
 
 function ContainerMapSection({ highlights }) {
-  const containerNos = [1, 2, 3]
-  const groupLabels = ['A', 'B', 'C']
+  const containerNos = [3, 2, 1]
+  const groupLabels = containerNos.map(n => `ตู้คอนที่ ${n}`)
+
   const rowPairs = [
     { leftSlot: 4, rightSlot: 4, leftNumber: 4, rightNumber: 8 },
     { leftSlot: 3, rightSlot: 3, leftNumber: 3, rightNumber: 7 },
