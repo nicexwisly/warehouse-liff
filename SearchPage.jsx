@@ -6,16 +6,15 @@ import { theme } from './theme'
 const BASE = import.meta.env.VITE_API_URL
 
 function parseContainerLabel(label = '') {
-  const match = label.match(/^CON(\d+)([A-Z])-?(\d{1,2})-(\d+)$/i)
+  // รองรับ format ใหม่: CON1-A-1
+  const match = label.match(/^CON(\d+)-([A-Z])-(\d{1,2})$/i)
   if (!match) return null
 
-  return {
-    containerNo: Number(match[1]),
-    rowLetter: match[2].toUpperCase(),
-    slot: Number(match[3]),
-    level: Number(match[4]),
-    label,
-  }
+  const containerNo = Number(match[1])
+  const row = match[2].toUpperCase()
+  const slot = Number(match[3])
+
+  return { containerNo, row, slot }
 }
 
 function parseTentLabel(label = '') {
