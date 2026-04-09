@@ -11,7 +11,7 @@ function parseContainerLabel(label = '') {
 
   return {
     containerNo: Number(match[1]),
-    zone: match[2].toUpperCase(),
+    rowLetter: match[2].toUpperCase(),
     slot: Number(match[3]),
     level: Number(match[4]),
     label,
@@ -41,8 +41,8 @@ function buildLocationMap(items) {
     summaryMap[label] = (summaryMap[label] || 0) + qty
 
     const con = parseContainerLabel(label)
-    if (con && con.zone) {
-      const key = `${con.zone}-${con.slot}`
+    if (con) {
+      const key = `${con.containerNo}-${con.rowLetter}-${con.slot}`
       containerHighlights[key] = {
         qty: (containerHighlights[key]?.qty || 0) + qty,
         labels: [...new Set([...(containerHighlights[key]?.labels || []), label])],
@@ -87,7 +87,12 @@ function ContainerMapSection({ highlights }) {
     [2, 6],
     [1, 5],
   ]
-  const zones = ['A', 'B', 'C']
+
+  const containerGroups = [
+    { containerNo: 1, label: 'A' },
+    { containerNo: 2, label: 'B' },
+    { containerNo: 3, label: 'C' },
+  ]
 
   return (
     <div style={mapStyles.sectionCard}>
@@ -98,17 +103,17 @@ function ContainerMapSection({ highlights }) {
 
       <div style={mapStyles.containerFrame}>
         <div style={mapStyles.containerColumns}>
-          {zones.map(zone => (
-            <div key={zone} style={mapStyles.containerColumn}>
+          {containerGroups.map(group => (
+            <div key={group.containerNo} style={mapStyles.containerColumn}>
               <div style={mapStyles.containerZoneGrid}>
                 {rows.map(([left, right]) => (
-                  <div key={`${zone}-${left}-${right}`} style={{ display: 'contents' }}>
-                    <ContainerCell number={left} activeData={highlights[`${zone}-${left}`]} />
-                    <ContainerCell number={right} activeData={highlights[`${zone}-${right}`]} />
+                  <div key={`${group.containerNo}-${left}-${right}`} style={{ display: 'contents' }}>
+                    <ContainerCell number={left} activeData={highlights[`${group.containerNo}-A-${left}`]} />
+                    <ContainerCell number={right} activeData={highlights[`${group.containerNo}-B-${right}`]} />
                   </div>
                 ))}
               </div>
-              <div style={mapStyles.zoneLabel}>{zone}</div>
+              <div style={mapStyles.zoneLabel}>{group.label}</div>
             </div>
           ))}
         </div>
