@@ -6,15 +6,15 @@ import { theme } from './theme'
 const BASE = import.meta.env.VITE_API_URL
 
 function parseContainerLabel(label = '') {
-  // รองรับ format ใหม่: CON1-A-1
   const match = label.match(/^CON(\d+)-([A-Z])-(\d{1,2})$/i)
   if (!match) return null
 
-  const containerNo = Number(match[1])
-  const row = match[2].toUpperCase()
-  const slot = Number(match[3])
-
-  return { containerNo, row, slot }
+  return {
+    containerNo: Number(match[1]),
+    rowLetter: match[2].toUpperCase(),
+    slot: Number(match[3]),
+    label,
+  }
 }
 
 function parseTentLabel(label = '') {
@@ -80,39 +80,41 @@ function ContainerCell({ number, activeData }) {
 }
 
 function ContainerMapSection({ highlights }) {
-  const rows = [
-    [4, 8],
-    [3, 7],
-    [2, 6],
-    [1, 5],
-  ]
-
-  const containerGroups = [
-    { containerNo: 1, label: 'A' },
-    { containerNo: 2, label: 'B' },
-    { containerNo: 3, label: 'C' },
+  const containerNos = [1, 2, 3]
+  const groupLabels = ['A', 'B', 'C']
+  const rowPairs = [
+    { leftSlot: 4, rightSlot: 4, leftNumber: 4, rightNumber: 8 },
+    { leftSlot: 3, rightSlot: 3, leftNumber: 3, rightNumber: 7 },
+    { leftSlot: 2, rightSlot: 2, leftNumber: 2, rightNumber: 6 },
+    { leftSlot: 1, rightSlot: 1, leftNumber: 1, rightNumber: 5 },
   ]
 
   return (
     <div style={mapStyles.sectionCard}>
       <div style={mapStyles.sectionHeader}>
-        <div style={mapStyles.sectionTitle}>Computer Cabinet</div>
+        <div style={mapStyles.sectionTitle}>Container ST129</div>
         <div style={mapStyles.sectionHint}>ไฮไลท์ทุกจุดที่พบ</div>
       </div>
 
       <div style={mapStyles.containerFrame}>
         <div style={mapStyles.containerColumns}>
-          {containerGroups.map(group => (
-            <div key={group.containerNo} style={mapStyles.containerColumn}>
+          {containerNos.map((containerNo, index) => (
+            <div key={containerNo} style={mapStyles.containerColumn}>
               <div style={mapStyles.containerZoneGrid}>
-                {rows.map(([left, right]) => (
-                  <div key={`${group.containerNo}-${left}-${right}`} style={{ display: 'contents' }}>
-                    <ContainerCell number={left} activeData={highlights[`${group.containerNo}-A-${left}`]} />
-                    <ContainerCell number={right} activeData={highlights[`${group.containerNo}-B-${right}`]} />
+                {rowPairs.map(pair => (
+                  <div key={`${containerNo}-${pair.leftSlot}-${pair.rightSlot}`} style={{ display: 'contents' }}>
+                    <ContainerCell
+                      number={pair.leftNumber}
+                      activeData={highlights[`${containerNo}-A-${pair.leftSlot}`]}
+                    />
+                    <ContainerCell
+                      number={pair.rightNumber}
+                      activeData={highlights[`${containerNo}-B-${pair.rightSlot}`]}
+                    />
                   </div>
                 ))}
               </div>
-              <div style={mapStyles.zoneLabel}>{group.label}</div>
+              <div style={mapStyles.zoneLabel}>{groupLabels[index] || String(containerNo)}</div>
             </div>
           ))}
         </div>
