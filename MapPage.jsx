@@ -495,6 +495,30 @@ function ConfirmAddModal({ open, form, selected, loading, onClose, onConfirm }) 
   )
 }
 
+function groupDetailItems(items) {
+  const grouped = {}
+
+  items.forEach(item => {
+    const key = item.item_code || `item-${item.id}`
+
+    if (!grouped[key]) {
+      grouped[key] = {
+        ...item,
+        qty: 0,
+        sourceItems: [],
+      }
+    }
+
+    grouped[key].qty += Number(item.qty) || 0
+    grouped[key].sourceItems.push({
+      id: item.id,
+      qty: Number(item.qty) || 0,
+    })
+  })
+
+  return Object.values(grouped)
+}
+
 function ContainerMap({ profile }) {
   const [map, setMap] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -551,7 +575,7 @@ function ContainerMap({ profile }) {
 
       const detail = await getPalletDetail(pallet.id)
       setSelectedPallet(pallet)
-      setDetailItems(detail.items || [])
+      setDetailItems(groupDetailItems(detail.items || []))
     } catch (e) {
       setDetailError(e.message)
     } finally {
@@ -564,41 +588,62 @@ function ContainerMap({ profile }) {
     setDeductModalItem(item)
   }
 
-  async function confirmDeductInline(inputQty) {
-    const qty = Number(inputQty)
+async function confirmDeductInline(inputQty) {
+  const qty = Number(inputQty)
 
-    if (!inputQty || isNaN(qty) || qty <= 0) {
-      setDeductError('กรุณากรอกจำนวนที่ต้องการหยิบออกให้ถูกต้อง')
-      return
-    }
+  if (!inputQty || isNaN(qty) || qty <= 0) {
+    setDeductError('กรุณากรอกจำนวนที่ต้องการหยิบออกให้ถูกต้อง')
+    return
+  }
 
-    if (deductModalItem && qty > Number(deductModalItem.qty || 0)) {
-      setDeductError(`จำนวนที่กรอกเกินคงเหลือ (${deductModalItem.qty})`)
-      return
-    }
+  if (deductModalItem && qty > Number(deductModalItem.qty || 0)) {
+    setDeductError(`จำนวนที่กรอกเกินคงเหลือ (${deductModalItem.qty})`)
+    return
+  }
 
-    setDeductLoading(true)
-    setDeductError('')
-    try {
-      const res = await deductItem(deductModalItem.id, {
-        qty,
+  setDeductLoading(true)
+  setDeductError('')
+
+  try {
+    let remaining = qty
+    let lastMessage = 'หยิบสินค้าออกเรียบร้อย'
+
+    const sourceItems = [...(deductModalItem?.sourceItems || [])]
+      .filter(source => Number(source.qty) > 0)
+
+    for (const source of sourceItems) {
+      if (remaining <= 0) break
+
+      const deductQty = Math.min(remaining, Number(source.qty || 0))
+      if (deductQty <= 0) continue
+
+      const res = await deductItem(source.id, {
+        qty: deductQty,
         actor_name: profile?.displayName,
         actor_user_id: profile?.userId,
       })
 
-      setDeductModalItem(null)
-      setActionToast({ type: 'success', text: res?.message || 'หยิบสินค้าออกเรียบร้อย' })
-      await loadMap()
-
-      if (selected?.label) {
-        await handleCellClick(selected)
-      }
-    } catch (e) {
-      setDeductError(e.message || 'ไม่สามารถหยิบสินค้าออกได้')
-    } finally {
-      setDeductLoading(false)
+      lastMessage = res?.message || lastMessage
+      remaining -= deductQty
     }
+
+    if (remaining > 0) {
+      throw new Error('ไม่สามารถหยิบสินค้าออกได้ครบตามจำนวนที่ต้องการ')
+    }
+
+    setDeductModalItem(null)
+    setActionToast({ type: 'success', text: lastMessage })
+    await loadMap()
+
+    if (selected?.label) {
+      await handleCellClick(selected)
+    }
+  } catch (e) {
+    setDeductError(e.message || 'ไม่สามารถหยิบสินค้าออกได้')
+  } finally {
+    setDeductLoading(false)
   }
+}
 
   function openAddModal() {
     setAddError('')
