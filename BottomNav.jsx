@@ -3,7 +3,6 @@ import { theme } from './theme'
 
 const tabs = [
   { path: '/search', label: 'ค้นหา', icon: '🔍' },
-  { path: '/add', label: 'เพิ่มสินค้า', icon: '➕' },
   { path: '/map', label: 'แผนที่', icon: '🗺️' },
   { path: '/history', label: 'ประวัติ', icon: '📋' },
 ]

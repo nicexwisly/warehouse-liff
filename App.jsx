@@ -3,7 +3,6 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import liff from '@line/liff'
 import BottomNav from './BottomNav'
 import SearchPage from './SearchPage'
-import AddItemPage from './AddItemPage'
 import MapPage from './MapPage'
 import HistoryPage from './HistoryPage'
 import { theme, trafficLights } from './theme'
@@ -55,7 +54,6 @@ export default function App() {
               <Routes>
                 <Route path="/" element={<Navigate to="/search" replace />} />
                 <Route path="/search" element={<SearchPage profile={profile} />} />
-                <Route path="/add" element={<AddItemPage profile={profile} />} />
                 <Route path="/map" element={<MapPage profile={profile} />} />
                 <Route path="/history" element={<HistoryPage />} />
               </Routes>

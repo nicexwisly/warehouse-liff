@@ -1623,34 +1623,28 @@ const am = {
 }
 
 export default function MapPage({ profile }) {
-  const [activeZone, setActiveZone] = useState('tent')
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div style={{ background: '#fff', padding: '12px 16px 0', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
         <h1 style={{ fontSize: 20, fontWeight: 700, color: '#1a1a1a', marginBottom: 10 }}>แผนที่</h1>
         <div style={{ display: 'flex', gap: 0, borderBottom: '2px solid #f0f0f0' }}>
-          {[
-            { key: 'tent', label: '🏕️ เต้นท์' },
-            { key: 'container', label: '🚛 ตู้คอนเทนเนอร์' },
-          ].map(tab => (
-            <button key={tab.key} onClick={() => setActiveZone(tab.key)} style={{
-              padding: '8px 16px', border: 'none', background: 'none', fontSize: 14, fontWeight: 600,
-              color: activeZone === tab.key ? '#06c755' : '#888',
-              borderBottom: activeZone === tab.key ? '2px solid #06c755' : '2px solid transparent',
-              cursor: 'pointer', marginBottom: -2,
-            }}>
-              {tab.label}
-            </button>
-          ))}
+          <div
+            style={{
+              padding: '8px 16px',
+              fontSize: 14,
+              fontWeight: 600,
+              color: '#06c755',
+              borderBottom: '2px solid #06c755',
+              marginBottom: -2,
+            }}
+          >
+            🚛 ตู้คอนเทนเนอร์
+          </div>
         </div>
       </div>
 
       <div style={{ flex: 1, overflow: 'hidden' }}>
-        {activeZone === 'tent'
-          ? <TentMap profile={profile} />
-          : <ContainerMap profile={profile} />
-        }
+        <ContainerMap profile={profile} />
       </div>
     </div>
   )
